@@ -205,7 +205,7 @@ class ImageWidget(QWidget, Ui_ImageWidget):
         for i in range(len(self.map)):
             temp = self.map[i]
             if temp["show_state"]:
-                p.drawEllipse(temp['x'] - temp['r'], temp['y'] - temp['r'], 2*temp['r'], 2*temp['r'])
+                p.drawEllipse(int(temp['x'] - temp['r']), int(temp['y'] - temp['r']), int(2*temp['r']), int(2*temp['r']))
 
         # 突出距离robot最近的障碍物
         if self.robot.type != "REAL_ROBOT" and self.task == TASK.Obstacle_Avoidance:    # 虚拟环境状态
@@ -214,13 +214,13 @@ class ImageWidget(QWidget, Ui_ImageWidget):
                 p.setBrush(QBrush(QColor(255, 0, 0, 128)))
                 p.setPen(pen)
                 temp = self.map[self.nearest_obstacle_id_left]
-                p.drawEllipse(temp['x'] - temp['r'], temp['y'] - temp['r'], 2*temp['r'], 2*temp['r'])
+                p.drawEllipse(int(temp['x'] - temp['r']), int(temp['y'] - temp['r']), int(2*temp['r']), int(2*temp['r']))
             if self.nearest_obstacle_id_right is not None and self.nearest_obstacle_id_right != -1:
                 pen = QPen(QColor(0, 255, 0, 255))    # 绿色表示右侧
                 p.setBrush(QBrush(QColor(0, 255, 0, 128)))
                 p.setPen(pen)
                 temp = self.map[self.nearest_obstacle_id_right]
-                p.drawEllipse(temp['x'] - temp['r'] + 1, temp['y'] - temp['r'] + 1, 2*temp['r'] - 2, 2*temp['r'] - 2)
+                p.drawEllipse(int(temp['x'] - temp['r'] + 1), int(temp['y'] - temp['r'] + 1), int(2*temp['r'] - 2), int(2*temp['r'] - 2))
         elif self.robot.type == "REAL_ROBOT":    # 更新真实的物理世界
             if len(self.obstacle.real_obstacles) > 0:
                 pen = QPen(QColor(255, 0, 0, 255), 5)    # 绿色表示右侧
@@ -241,19 +241,19 @@ class ImageWidget(QWidget, Ui_ImageWidget):
         # p.end()
         # p.begin(self)
         p.setPen(QPen(QColor(255, 0, 0, 255), 3))
-        p.drawLine(self.robot.wheel_ldx, self.robot.wheel_ldy, self.robot.wheel_lux, self.robot.wheel_luy)
+        p.drawLine(int(self.robot.wheel_ldx), int(self.robot.wheel_ldy), int(self.robot.wheel_lux), int(self.robot.wheel_luy))
         p.setPen(QPen(QColor(0, 255, 0, 255), 3))
-        p.drawLine(self.robot.wheel_rdx, self.robot.wheel_rdy, self.robot.wheel_rux, self.robot.wheel_ruy)
+        p.drawLine(int(self.robot.wheel_rdx), int(self.robot.wheel_rdy), int(self.robot.wheel_rux), int(self.robot.wheel_ruy))
         p.setPen(QPen(QColor(0, 0, 0, 255), 3))
-        p.drawLine((self.robot.wheel_ldx + self.robot.wheel_lux)/2, (self.robot.wheel_ldy + self.robot.wheel_luy)/2, \
-            (self.robot.wheel_rdx + self.robot.wheel_rux)/2, (self.robot.wheel_rdy + self.robot.wheel_ruy)/2)
-        p.drawEllipse(self.robot.start_x - (self.robot.radius/2), self.robot.start_y-(self.robot.radius/2), self.robot.radius, self.robot.radius)
+        p.drawLine(int((self.robot.wheel_ldx + self.robot.wheel_lux)/2), int((self.robot.wheel_ldy + self.robot.wheel_luy)/2), \
+            int((self.robot.wheel_rdx + self.robot.wheel_rux)/2), int((self.robot.wheel_rdy + self.robot.wheel_ruy)/2))
+        p.drawEllipse(int(self.robot.start_x - (self.robot.radius/2)), int(self.robot.start_y-(self.robot.radius/2)), int(self.robot.radius), int(self.robot.radius))
 
         # 画当前小车位置
         pen = QPen(QColor(255, 0, 255, 255))
         p.setBrush(QBrush(QColor(255, 0, 255, 128)))
         p.setPen(pen)
-        p.drawEllipse(self.robot.x-(self.robot.radius/2), self.robot.y-(self.robot.radius/2), self.robot.radius, self.robot.radius)
+        p.drawEllipse(int(self.robot.x-(self.robot.radius/2)), int(self.robot.y-(self.robot.radius/2)), int(self.robot.radius), int(self.robot.radius))
 
         # 画小车路径
         pen_path = QPen(QColor(0, 0, 255, 255), 2)
@@ -278,7 +278,7 @@ class ImageWidget(QWidget, Ui_ImageWidget):
         if self.task == TASK.Object_Tracking and self.tracking_point is not None and self.robot.type == "VIRTUAL_ROBOT":
             pen_track_point = QPen(QColor(250, 12, 37), 1)
             p.setPen(pen_track_point)
-            p.drawEllipse(self.tracking_point.x()-6, self.tracking_point.y()-6, 12, 12)
+            p.drawEllipse(int(self.tracking_point.x()-6), int(self.tracking_point.y()-6), 12, 12)
 
             if len(self.tracking.get_points_list()) > 3:
                 paths = self.tracking.get_paths_list()
@@ -299,11 +299,11 @@ class ImageWidget(QWidget, Ui_ImageWidget):
                 # 当前跟踪目标的位置
                 pen_track_pt = QPen(QColor(251, 80, 99, 255), 2)
                 p.setPen(pen_track_pt)
-                p.drawEllipse(cur_pos.x()-8, cur_pos.y()-8, 16, 16)
+                p.drawEllipse(int(cur_pos.x()-8), int(cur_pos.y()-8), 16, 16)
 
                 # 画人为添加的控制点
                 for mm in self.tracking.get_points_list():
-                    p.drawEllipse(mm[0]-8, mm[1]-8, 16, 16)
+                    p.drawEllipse(int(mm[0]-8), int(mm[1]-8), 16, 16)
 
         p.end()
 
