@@ -9,4 +9,4 @@ GRASP_CONTROL = enum.Enum("CONTROL", ("Freedom", "Mode"))    # 第一种是全6�
 
 MAP_MODE = enum.Enum("MAP_MODE", ("Virtual", "Real"))
 
-SYSTEM_DEVICE = enum.Enum("SYSTEM_DEVICE", ("MEA2100", "INTAN"))
+SYSTEM_DEVICE = enum.Enum("SYSTEM_DEVICE", ("MEA2100", "INTAN", "MAXWELL"))

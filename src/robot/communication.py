@@ -21,6 +21,7 @@ from src.robot.task import TASK, MAP, SYSTEM_DEVICE
 from src.robot.dynamic_model_control import DynamicM_Control
 
 from src.system_device.intan_sys import INTAN_System
+from src.system_device.maxwell_sys import MaxwellSystem
 
 
 class Communication(object):
@@ -39,6 +40,13 @@ class Communication(object):
         self.stimulation.set_recording(self.recording)
 
         self.intan_data_path = None
+
+        # Maxwell 会话参数（cfg 路径、电极池、角色映射），由 GUI 在 connect_to_maxwell 之前注入
+        self.maxwell_cfg_path = None
+        self.maxwell_record_electrodes = None
+        self.maxwell_stim_electrodes = None
+        self.maxwell_role_mapping = None
+        self.maxwell_sys = None
 
         # 选择和设定当前连接的系统
         device_cont = self.recording.get_device_count()
@@ -87,12 +95,17 @@ class Communication(object):
     def close(self):
         if self.device_type == SYSTEM_DEVICE.INTAN:
             self.intan_sys.stop_connect()
+        elif self.device_type == SYSTEM_DEVICE.MAXWELL:
+            if self.maxwell_sys is not None:
+                self.maxwell_sys.stop_connect()
 
     def update_systems(self, systems):
         if systems == SYSTEM_DEVICE.MEA2100:
             self.connect_to_mea2100()
         elif systems == SYSTEM_DEVICE.INTAN:
             self.connect_to_intan()
+        elif systems == SYSTEM_DEVICE.MAXWELL:
+            self.connect_to_maxwell()
 
     def set_intan_data_path(self, dir_data):
         """
@@ -101,6 +114,27 @@ class Communication(object):
         self.intan_data_path = dir_data
         if self.device_type == SYSTEM_DEVICE.INTAN:
             self.recording.recording.set_monitoring_directory(dir_data)
+
+    def set_maxwell_session_params(self, cfg_path, record_electrodes=None,
+                                   stim_electrodes=None, role_mapping=None):
+        """
+        在 connect_to_maxwell 之前注入 Maxwell 会话所需的全部参数。
+
+        Parameters
+        ----------
+        cfg_path : str or Path
+            MaxLab Live 导出的 .cfg 文件路径。
+        record_electrodes : list[int] or None
+            参与记录的物理电极 ID。供 cfg_loader 校验覆盖度。
+        stim_electrodes : list[int] or None
+            候选刺激电极池（≤32 上限）。
+        role_mapping : dict or None
+            刺激电极角色映射。如 {"env_left": 15000, "env_right": 15500}。
+        """
+        self.maxwell_cfg_path = cfg_path
+        self.maxwell_record_electrodes = record_electrodes
+        self.maxwell_stim_electrodes = stim_electrodes
+        self.maxwell_role_mapping = role_mapping
     
     def connect_to_mea2100(self):
         if self.device_type == SYSTEM_DEVICE.INTAN:
@@ -139,6 +173,55 @@ class Communication(object):
             print(30*"==")
             print("The intan system is connected!...")
             print(30*"==")
+
+    def connect_to_maxwell(self):
+        """
+        切换到 Maxwell 设备。
+
+        前置条件：必须先调用 set_maxwell_session_params 注入 cfg 路径与
+        电极池。本方法负责安全断开当前设备、实例化 MaxwellSystem、执行
+        完整启动序列（8 步初始化 + cfg 加载 + stim pool route 与上电）。
+        """
+        if self.maxwell_cfg_path is None:
+            print("Please call set_maxwell_session_params before connecting to Maxwell!...")
+            return
+
+        # 安全断开当前设备
+        if self.device_type == SYSTEM_DEVICE.INTAN:
+            self.intan_sys.stop_connect()
+        elif self.device_type == SYSTEM_DEVICE.MEA2100:
+            try:
+                self.recording.disconnect()
+            except Exception:
+                pass
+
+        del self.recording
+        del self.stimulation
+        self.recording = None
+        self.stimulation = None
+
+        self.device_type = SYSTEM_DEVICE.MAXWELL
+        self.maxwell_sys = MaxwellSystem()
+
+        try:
+            self.maxwell_sys.start_session(
+                cfg_path=self.maxwell_cfg_path,
+                record_electrodes=self.maxwell_record_electrodes,
+                stim_electrodes=self.maxwell_stim_electrodes,
+                role_mapping=self.maxwell_role_mapping,
+            )
+        except Exception as exc:
+            print("Maxwell session start failed: {!r}".format(exc))
+            self.maxwell_sys.stop_connect()
+            self.maxwell_sys = None
+            return
+
+        self.recording = self.maxwell_sys.recording
+        self.stimulation = self.maxwell_sys.stimulating
+
+        print(30*"==")
+        print("The maxwell system is connected!...")
+        print(30*"==")
 
     def set_obstacle_map(self, map):
         self.map = map
