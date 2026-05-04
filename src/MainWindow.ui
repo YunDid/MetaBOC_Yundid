@@ -1,0 +1,1608 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1110</width>
+    <height>1192</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Brain ICROA</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true"/>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QGridLayout" name="gridLayout_5">
+    <item row="0" column="0" rowspan="4">
+     <widget class="QFrame" name="frame">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">background-color: rgb(240, 240, 240);</string>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::Box</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Sunken</enum>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="1">
+     <widget class="QFrame" name="frame_2">
+      <property name="styleSheet">
+       <string notr="true"/>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::Box</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Sunken</enum>
+      </property>
+      <layout class="QGridLayout" name="gridLayout">
+       <item row="0" column="0">
+        <layout class="QVBoxLayout" name="verticalLayout">
+         <item>
+          <widget class="QLabel" name="label">
+           <property name="font">
+            <font>
+             <pointsize>11</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Robot Position:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout">
+           <property name="topMargin">
+            <number>6</number>
+           </property>
+           <item>
+            <widget class="QLabel" name="label_2">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>150</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Center X:</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="dsb_x">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>200</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="maximum">
+              <double>2000.000000000000000</double>
+             </property>
+             <property name="singleStep">
+              <double>1.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_2">
+           <item>
+            <widget class="QLabel" name="label_3">
+             <property name="minimumSize">
+              <size>
+               <width>150</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <weight>75</weight>
+               <italic>false</italic>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Center Y:</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="dsb_y">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>200</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="maximum">
+              <double>2000.000000000000000</double>
+             </property>
+             <property name="singleStep">
+              <double>1.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_3">
+           <item>
+            <widget class="QLabel" name="label_4">
+             <property name="minimumSize">
+              <size>
+               <width>150</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Left Distance:</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="dsb_distance_left">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>200</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="maximum">
+              <double>2000.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_4">
+           <item>
+            <widget class="QLabel" name="label_5">
+             <property name="minimumSize">
+              <size>
+               <width>150</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Right Distance:</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="dsb_distance_right">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>200</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="maximum">
+              <double>2000.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_5">
+           <item>
+            <widget class="QLabel" name="label_6">
+             <property name="minimumSize">
+              <size>
+               <width>150</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Left Position X:</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="dsb_left_x">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>200</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="maximum">
+              <double>2000.000000000000000</double>
+             </property>
+             <property name="singleStep">
+              <double>1.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_6">
+           <item>
+            <widget class="QLabel" name="label_9">
+             <property name="minimumSize">
+              <size>
+               <width>150</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Left Position Y:</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="dsb_left_y">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>200</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="maximum">
+              <double>2000.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_7">
+           <item>
+            <widget class="QLabel" name="label_7">
+             <property name="minimumSize">
+              <size>
+               <width>150</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Right Position X:</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="dsb_right_x">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>200</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="maximum">
+              <double>2000.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_8">
+           <item>
+            <widget class="QLabel" name="label_8">
+             <property name="minimumSize">
+              <size>
+               <width>150</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Right Position Y:</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="dsb_right_y">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>200</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="maximum">
+              <double>2000.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           </layout>
+          </item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item row="1" column="1">
+     <widget class="QFrame" name="frame_4">
+      <property name="frameShape">
+       <enum>QFrame::Box</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Sunken</enum>
+      </property>
+      <layout class="QGridLayout" name="gridLayout_3">
+       <item row="0" column="0">
+        <widget class="QLabel" name="label_19">
+         <property name="font">
+          <font>
+           <pointsize>12</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Training and Testing:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="0">
+        <layout class="QHBoxLayout" name="horizontalLayout_19">
+         <item>
+          <widget class="QLabel" name="label_17">
+           <property name="font">
+            <font>
+             <pointsize>10</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Number of Hits:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSpinBox" name="spb_number_hints">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>10</pointsize>
+             <weight>50</weight>
+             <bold>false</bold>
+            </font>
+           </property>
+           <property name="maximum">
+            <number>10000</number>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="5" column="0">
+        <layout class="QHBoxLayout" name="horizontalLayout_18">
+         <item>
+          <widget class="QLabel" name="label_16">
+           <property name="font">
+            <font>
+             <pointsize>10</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Test Time:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSpinBox" name="spb_test_time">
+           <property name="font">
+            <font>
+             <pointsize>10</pointsize>
+             <weight>50</weight>
+             <bold>false</bold>
+            </font>
+           </property>
+           <property name="suffix">
+            <string>min</string>
+           </property>
+           <property name="maximum">
+            <number>100000</number>
+           </property>
+           <property name="value">
+            <number>5</number>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="4" column="0">
+        <layout class="QHBoxLayout" name="horizontalLayout_16">
+         <item>
+          <widget class="QLabel" name="label_15">
+           <property name="font">
+            <font>
+             <pointsize>10</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Train Time:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSpinBox" name="spb_train_time">
+           <property name="font">
+            <font>
+             <pointsize>10</pointsize>
+             <weight>50</weight>
+             <bold>false</bold>
+            </font>
+           </property>
+           <property name="suffix">
+            <string>min</string>
+           </property>
+           <property name="minimum">
+            <number>1</number>
+           </property>
+           <property name="maximum">
+            <number>10000000</number>
+           </property>
+           <property name="value">
+            <number>10</number>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="1" column="0">
+        <layout class="QHBoxLayout" name="horizontalLayout_15">
+         <item>
+          <widget class="QRadioButton" name="rdb_train_mode">
+           <property name="font">
+            <font>
+             <pointsize>9</pointsize>
+             <weight>50</weight>
+             <bold>false</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Train Mode</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="rdb_test_mode">
+           <property name="font">
+            <font>
+             <pointsize>9</pointsize>
+             <weight>50</weight>
+             <bold>false</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Test Mode</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="3" column="0">
+        <layout class="QHBoxLayout" name="horizontalLayout_21">
+         <item>
+          <widget class="QLabel" name="label_21">
+           <property name="font">
+            <font>
+             <pointsize>10</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Stimulating Signal:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="lineEdit_select_sti">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="6" column="0">
+        <layout class="QHBoxLayout" name="horizontalLayout_17">
+         <item>
+          <widget class="QLabel" name="label_20">
+           <property name="font">
+            <font>
+             <pointsize>10</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Current Time:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QDoubleSpinBox" name="dsb_current_time">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="prefix">
+            <string/>
+           </property>
+           <property name="suffix">
+            <string>min</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="8" column="0">
+        <layout class="QHBoxLayout" name="horizontalLayout_20">
+         <item>
+          <widget class="QLabel" name="label_18">
+           <property name="font">
+            <font>
+             <pointsize>10</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Distance of Tracking:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSpinBox" name="spb_distance_tracking">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>10</pointsize>
+             <weight>50</weight>
+             <bold>false</bold>
+            </font>
+           </property>
+           <property name="maximum">
+            <number>100000</number>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="2" column="0">
+        <layout class="QHBoxLayout" name="horizontalLayout_26">
+         <item>
+          <widget class="QRadioButton" name="rdb_dynamic_model">
+           <property name="text">
+            <string>Dynamic Model</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="rdb_non_dynamic_model">
+           <property name="text">
+            <string>Without Dynamic Model</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item row="2" column="1">
+     <widget class="QFrame" name="frame_3">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::Box</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Sunken</enum>
+      </property>
+      <layout class="QGridLayout" name="gridLayout_2">
+       <item row="0" column="0">
+        <widget class="QLabel" name="label_10">
+         <property name="minimumSize">
+          <size>
+           <width>200</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>11</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Robot Control by Freqency:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0" colspan="2">
+        <layout class="QHBoxLayout" name="horizontalLayout_9">
+         <property name="topMargin">
+          <number>6</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="label_11">
+           <property name="minimumSize">
+            <size>
+             <width>150</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="font">
+            <font>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Velocity of Left Wheel:</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QDoubleSpinBox" name="dsb_left_wheel_fre">
+           <property name="minimumSize">
+            <size>
+             <width>200</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="suffix">
+            <string>rad/s</string>
+           </property>
+           <property name="minimum">
+            <double>0.500000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>500.000000000000000</double>
+           </property>
+           <property name="singleStep">
+            <double>0.100000000000000</double>
+           </property>
+           <property name="value">
+            <double>0.500000000000000</double>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="2" column="0" colspan="2">
+        <layout class="QHBoxLayout" name="horizontalLayout_10">
+         <item>
+          <widget class="QLabel" name="label_12">
+           <property name="minimumSize">
+            <size>
+             <width>150</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="font">
+            <font>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Velocity of Right Wheel:</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QDoubleSpinBox" name="dsb_right_wheel_fre">
+           <property name="minimumSize">
+            <size>
+             <width>200</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="suffix">
+            <string>rad/s</string>
+           </property>
+           <property name="minimum">
+            <double>0.500000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>500.000000000000000</double>
+           </property>
+           <property name="singleStep">
+            <double>0.100000000000000</double>
+           </property>
+           <property name="value">
+            <double>0.500000000000000</double>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="3" column="0" colspan="2">
+        <layout class="QHBoxLayout" name="horizontalLayout_22">
+         <item>
+          <widget class="QLabel" name="label_22">
+           <property name="minimumSize">
+            <size>
+             <width>150</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="font">
+            <font>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Run Directions:</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="comboBox_run_direction">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>200</width>
+             <height>24</height>
+            </size>
+           </property>
+           <item>
+            <property name="text">
+             <string>Drive</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Retro</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="4" column="0" colspan="2">
+        <layout class="QHBoxLayout" name="horizontalLayout_11">
+         <item>
+          <widget class="QLabel" name="label_13">
+           <property name="minimumSize">
+            <size>
+             <width>150</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="font">
+            <font>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Robot Velocity:</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QDoubleSpinBox" name="dsb_velocity">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>200</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="suffix">
+            <string>  px/s</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="5" column="0" colspan="2">
+        <layout class="QHBoxLayout" name="horizontalLayout_13">
+         <item>
+          <widget class="QLabel" name="label_14">
+           <property name="minimumSize">
+            <size>
+             <width>150</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="font">
+            <font>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Robot Angles:</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QDoubleSpinBox" name="dsb_angles">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>200</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="suffix">
+            <string>°</string>
+           </property>
+           <property name="minimum">
+            <double>-500.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>500.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="7" column="0" colspan="2">
+        <layout class="QHBoxLayout" name="horizontalLayout_24">
+         <item>
+          <widget class="QLabel" name="label_24">
+           <property name="font">
+            <font>
+             <pointsize>9</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>State of the Cell:</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_cell_state">
+           <property name="minimumSize">
+            <size>
+             <width>100</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="8" column="0" colspan="2">
+        <layout class="QHBoxLayout" name="horizontalLayout_23">
+         <item>
+          <widget class="QLabel" name="label_23">
+           <property name="font">
+            <font>
+             <pointsize>11</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>IP &amp; Port:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="lineEdit_ip_adress">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="lineEdit_port">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>50</width>
+             <height>16777215</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="pb_connect">
+           <property name="text">
+            <string>Connect</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_state">
+           <property name="minimumSize">
+            <size>
+             <width>23</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="frameShape">
+            <enum>QFrame::StyledPanel</enum>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="9" column="0" colspan="2">
+        <layout class="QHBoxLayout" name="horizontalLayout_14">
+         <item>
+          <widget class="QRadioButton" name="radioButton_human">
+           <property name="text">
+            <string>Human Control</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="radioButton_mea">
+           <property name="text">
+            <string>MEA Control</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="radioButton_human_real">
+           <property name="text">
+            <string>Human Real</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="radioButton_real_control">
+           <property name="text">
+            <string>Real Control</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="10" column="0" colspan="2">
+        <layout class="QHBoxLayout" name="horizontalLayout_12">
+         <item>
+          <widget class="QPushButton" name="pb_reset">
+           <property name="minimumSize">
+            <size>
+             <width>100</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>Reset Position</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="pb_start">
+           <property name="minimumSize">
+            <size>
+             <width>100</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>Start</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="pb_stop">
+           <property name="minimumSize">
+            <size>
+             <width>100</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>Stop</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="11" column="0" colspan="2">
+        <widget class="Line" name="line">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item row="12" column="0" colspan="2">
+        <layout class="QHBoxLayout" name="horizontalLayout_25">
+         <property name="spacing">
+          <number>10</number>
+         </property>
+         <property name="sizeConstraint">
+          <enum>QLayout::SetMinimumSize</enum>
+         </property>
+         <item>
+          <widget class="QRadioButton" name="rdb_avoidance">
+           <property name="text">
+            <string>Obstacle Avoidance</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="rdb_tracking">
+           <property name="text">
+            <string>Object Tracking</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="rdb_grasping">
+           <property name="text">
+            <string>Object Grasping</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="13" column="0">
+        <spacer name="verticalSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item row="6" column="0" colspan="2">
+        <layout class="QHBoxLayout" name="horizontalLayout_27">
+         <item>
+          <widget class="QLabel" name="label_25">
+           <property name="font">
+            <font>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="layoutDirection">
+            <enum>Qt::LeftToRight</enum>
+           </property>
+           <property name="text">
+            <string>Angle of Robot Arm:</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QDoubleSpinBox" name="dsb_robot_arm_angle">
+           <property name="suffix">
+            <string>°</string>
+           </property>
+           <property name="minimum">
+            <double>-1.570000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>1.570000000000000</double>
+           </property>
+           <property name="singleStep">
+            <double>0.050000000000000</double>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="14" column="0" colspan="2">
+        <widget class="QPushButton" name="pb_reset_all">
+         <property name="text">
+          <string>Reset All</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1110</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="actionExit"/>
+   </widget>
+   <widget class="QMenu" name="menuStimulate">
+    <property name="title">
+     <string>Stimulate</string>
+    </property>
+    <addaction name="actionAdd_Stimulating"/>
+    <addaction name="actionSelect_Stimulating"/>
+    <addaction name="actionStimulate"/>
+    <addaction name="separator"/>
+    <addaction name="actionDynamic_Model"/>
+   </widget>
+   <widget class="QMenu" name="menuSignal">
+    <property name="title">
+     <string>Signal</string>
+    </property>
+    <addaction name="actionShow_Signal"/>
+    <addaction name="actionSpike_Detection_Setting"/>
+    <addaction name="actionEncode_Decode_Setting"/>
+    <addaction name="separator"/>
+    <addaction name="actionShow_Stimulus_Spike_Signal"/>
+    <addaction name="separator"/>
+    <addaction name="actionShow_Grasp_Distance"/>
+    <addaction name="actionShow_Arm_Pos_in_3D_Space"/>
+   </widget>
+   <widget class="QMenu" name="menuExport">
+    <property name="title">
+     <string>Export</string>
+    </property>
+    <addaction name="actionSave_Raw_Data"/>
+    <addaction name="actionSave_State"/>
+    <addaction name="actionSave_Spikes"/>
+   </widget>
+   <widget class="QMenu" name="menuTask">
+    <property name="title">
+     <string>Task</string>
+    </property>
+    <addaction name="actionObstacle_Avoidance"/>
+    <addaction name="actionObject_Tracking"/>
+    <addaction name="actionObject_Grasping"/>
+    <addaction name="separator"/>
+    <addaction name="actionEmpty_Map"/>
+    <addaction name="actionRandom_Map"/>
+    <addaction name="actionHuman_Map"/>
+    <addaction name="actionRegular_Map"/>
+   </widget>
+   <widget class="QMenu" name="menuSystem">
+    <property name="title">
+     <string>System</string>
+    </property>
+    <addaction name="actionMEA_2100"/>
+    <addaction name="actionINTAN_System"/>
+    <addaction name="separator"/>
+    <addaction name="actionSet_INTAN_Data_Path"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuSystem"/>
+   <addaction name="menuTask"/>
+   <addaction name="menuStimulate"/>
+   <addaction name="menuSignal"/>
+   <addaction name="menuExport"/>
+  </widget>
+  <widget class="QToolBar" name="toolBar_stimulate">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionAdd_Stimulating"/>
+   <addaction name="actionSelect_Stimulating"/>
+   <addaction name="separator"/>
+   <addaction name="actionStimulate"/>
+   <addaction name="separator"/>
+   <addaction name="actionDynamic_Model"/>
+  </widget>
+  <widget class="QToolBar" name="toolBar_signal">
+   <property name="windowTitle">
+    <string>toolBar_2</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionShow_Signal"/>
+   <addaction name="actionSpike_Detection_Setting"/>
+   <addaction name="actionEncode_Decode_Setting"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QToolBar" name="toolBar_Export">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionSave_Raw_Data"/>
+  </widget>
+  <action name="actionAdd_Stimulating">
+   <property name="icon">
+    <iconset>
+     <normalon>:/icons/resources/add.png</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>Add Stimulating</string>
+   </property>
+  </action>
+  <action name="actionSelect_Stimulating">
+   <property name="icon">
+    <iconset>
+     <normalon>:/icons/resources/stimulating_select.png</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>Select Stimulating</string>
+   </property>
+  </action>
+  <action name="actionShow_Signal">
+   <property name="icon">
+    <iconset>
+     <normalon>:/icons/resources/show_signal.jpg</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>Show Signal</string>
+   </property>
+  </action>
+  <action name="actionSpike_Detection_Setting">
+   <property name="icon">
+    <iconset>
+     <normalon>:/icons/resources/spike_detection.png</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>Spike Detection Setting...</string>
+   </property>
+  </action>
+  <action name="actionStimulate">
+   <property name="icon">
+    <iconset>
+     <normalon>:/icons/resources/stimulate.jpg</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>Stimulate</string>
+   </property>
+  </action>
+  <action name="actionEncode_Decode_Setting">
+   <property name="icon">
+    <iconset>
+     <normalon>:/icons/resources/encode_decode.jpg</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>Encode Decode Setting...</string>
+   </property>
+  </action>
+  <action name="actionSave_Raw_Data">
+   <property name="icon">
+    <iconset>
+     <normalon>:/icons/resources/export.png</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>Save Raw Data...</string>
+   </property>
+  </action>
+  <action name="actionSave_State">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Save State</string>
+   </property>
+  </action>
+  <action name="actionDynamic_Model">
+   <property name="icon">
+    <iconset>
+     <normalon>:/icons/resources/dynamic.png</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>Dynamic Model...</string>
+   </property>
+  </action>
+  <action name="actionShow_Stimulus_Spike_Signal">
+   <property name="text">
+    <string>Show Stimulus &amp; Spike Signal...</string>
+   </property>
+  </action>
+  <action name="actionSave_Spikes">
+   <property name="text">
+    <string>Save Spikes...</string>
+   </property>
+  </action>
+  <action name="actionObstacle_Avoidance">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Obstacle Avoidance</string>
+   </property>
+  </action>
+  <action name="actionObject_Tracking">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Object Tracking</string>
+   </property>
+  </action>
+  <action name="actionObject_Grasping">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Object Grasping</string>
+   </property>
+  </action>
+  <action name="actionEmpty_Map">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Empty Map</string>
+   </property>
+  </action>
+  <action name="actionRandom_Map">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Random Map</string>
+   </property>
+  </action>
+  <action name="actionHuman_Map">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Human Map</string>
+   </property>
+  </action>
+  <action name="actionRegular_Map">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Regular Map</string>
+   </property>
+  </action>
+  <action name="actionShow_Grasp_Distance">
+   <property name="text">
+    <string>Show Grasp Distance...</string>
+   </property>
+  </action>
+  <action name="actionShow_Arm_Pos_in_3D_Space">
+   <property name="text">
+    <string>Show Arm Pos in 3D Space...</string>
+   </property>
+  </action>
+  <action name="actionExit">
+   <property name="text">
+    <string>Exit...</string>
+   </property>
+  </action>
+  <action name="actionMEA_2100">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>MEA 2100 Mini</string>
+   </property>
+  </action>
+  <action name="actionINTAN_System">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>INTAN System</string>
+   </property>
+  </action>
+  <action name="actionSet_INTAN_Data_Path">
+   <property name="text">
+    <string>Set INTAN Data Path...</string>
+   </property>
+  </action>
+ </widget>
+ <resources>
+  <include location="res.qrc"/>
+ </resources>
+ <connections/>
+</ui>

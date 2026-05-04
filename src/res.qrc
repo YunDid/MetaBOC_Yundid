@@ -1,0 +1,13 @@
+<RCC>
+  <qresource prefix="icons">
+    <file>../resources/wave.png</file>
+    <file>../resources/add.png</file>
+    <file>../resources/stimulate.jpg</file>
+    <file>../resources/show_signal.jpg</file>
+    <file>../resources/spike_detection.png</file>
+    <file>../resources/stimulating_select.png</file>
+    <file>../resources/encode_decode.jpg</file>
+    <file>../resources/export.png</file>
+    <file>../resources/dynamic.png</file>
+  </qresource>
+</RCC>
