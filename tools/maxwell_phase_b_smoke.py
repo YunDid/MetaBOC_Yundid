@@ -89,6 +89,12 @@ def smoke_tier_b(cfg_path, stim_electrodes, role_mapping):
     """通过 Communication 包装层，模拟 GUI 路径。"""
     _print_banner("Tier B — Communication wrapper")
 
+    # Communication.__init__ 实例化 EncodingDecoding(QDialog)，
+    # 必须先有 QApplication 在场，否则 Qt 直接 abort。
+    # 与真实 GUI 启动路径一致——main.py 同样先 QApplication 再 Communication。
+    from PyQt5.QtWidgets import QApplication
+    _qt_app = QApplication.instance() or QApplication([])
+
     from src.robot.communication import Communication
     from src.robot.task import SYSTEM_DEVICE
 
