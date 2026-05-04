@@ -25,7 +25,20 @@ from src.robot.encode_decode import EncodingDecoding
 from src.robot.task import TASK, MAP
 
 # for dynamic models
-from src.dynamic_model.dynamic_model_run import NeuroDynamicModel
+# 防御性 import：dynamic_model 链依赖 pytorch_lightning，版本漂移或 API
+# 不兼容时不应阻塞 GUI 启动。dynamic_model_used 默认 False，仅当用户显式
+# 启用 MPC 时才需要 NeuroDynamicModel；失败时打印警告并将其置为 None，
+# 让 DynamicM_Control.initial_model 在使用时给出明确报错。
+try:
+    from src.dynamic_model.dynamic_model_run import NeuroDynamicModel
+    AI_MODEL_AVAILABLE = True
+except Exception as _ai_import_exc:  # noqa: BLE001
+    print(
+        "AI dynamic model unavailable (NeuroDynamicModel import failed): {!r}. "
+        "MPC features will be disabled until the AI module is fixed.".format(_ai_import_exc)
+    )
+    NeuroDynamicModel = None
+    AI_MODEL_AVAILABLE = False
 
 
 class DynamicM_Control(object):

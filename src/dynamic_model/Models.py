@@ -4,7 +4,7 @@ from turtle import forward
 import torch
 from torch.nn import functional as F
 from torch import nn
-from pytorch_lightning.core.lightning import LightningModule
+from pytorch_lightning import LightningModule  # pytorch_lightning 1.9+ 移除了 .core.lightning 路径
 from src.dynamic_model.utils import EI_Sparse_Mask_
 
 
