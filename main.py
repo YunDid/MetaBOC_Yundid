@@ -846,13 +846,51 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
                 self.actionMEA_2100.setChecked(True)
                 return
 
+            # Phase B 候选 stim 池输入：QInputDialog 收逗号分隔电极 ID。
+            # 留空 → recording-only（向后兼容，不创建 stim_pool）。
+            # role_mapping 仍传 None；Phase C 在 add_stimulating 触发的
+            # stim 配置对话框里分配 left / right / reward 角色。
+            stim_text, ok = QInputDialog.getText(
+                self,
+                "Stim electrode pool",
+                "候选刺激电极 ID（逗号分隔，≤32，留空则跳过 stim 链路）：\n"
+                "例如: 14589,5704",
+            )
+            if not ok:
+                self.actionMEA_2100.setChecked(True)
+                return
+
+            stim_electrodes = None
+            if stim_text.strip():
+                try:
+                    stim_electrodes = [
+                        int(x.strip()) for x in stim_text.split(",") if x.strip()
+                    ]
+                except ValueError as exc:
+                    QMessageBox.warning(
+                        self,
+                        "Stim 电极解析失败",
+                        "无法把输入解析为电极 ID 列表：{}\n"
+                        "请输入数字 ID 用逗号分隔，如 14589,5704。".format(exc),
+                    )
+                    self.actionMEA_2100.setChecked(True)
+                    return
+                if len(stim_electrodes) > 32:
+                    QMessageBox.warning(
+                        self,
+                        "Stim 候选池超限",
+                        "Maxwell 单芯片最多 32 个 stim unit，当前输入 {} 个。".format(
+                            len(stim_electrodes)
+                        ),
+                    )
+                    self.actionMEA_2100.setChecked(True)
+                    return
+
             self.maxwell_cfg_path = cfg_path
-            # Phase B 阶段：stim_electrodes / role_mapping 暂用空值，仅验
-            # 证记录链路；Phase C 接入 stim 选择对话框后再注入。
             self.imageWidget.mea_ic.set_maxwell_session_params(
                 cfg_path=cfg_path,
                 record_electrodes=None,
-                stim_electrodes=None,
+                stim_electrodes=stim_electrodes,
                 role_mapping=None,
             )
             self.imageWidget.update_system(SYSTEM_DEVICE.MAXWELL)
