@@ -447,7 +447,7 @@ class RealRobot(Robot):
         self.wheel_rdx = self.x - math.cos(math.pi / 2.0 - self.angles - self.alpha) * self.big_length
         self.wheel_rdy = self.y + math.sin(math.pi / 2.0 - self.angles - self.alpha) * self.big_length
 
-        points = QPoint(self.x, self.y)
+        points = QPoint(int(self.x), int(self.y))
         self.points.append(points)
         self.angles_list.append(self.angles)
 

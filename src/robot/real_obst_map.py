@@ -74,7 +74,7 @@ class RealObstacleMap(ObstacleMap):
             #     obs_x = 0
             # if obs_y < 0:
             #     obs_y = 0
-            points = QPoint(obs_x, obs_y)    # 绝对位置坐标
+            points = QPoint(int(obs_x), int(obs_y))    # 绝对位置坐标
             self.real_obstacles.append(points)
             self.real_obstacles_angle.append(ang)
         print("convert time:", time.time()-t1)

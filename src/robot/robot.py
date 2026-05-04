@@ -190,7 +190,7 @@ class Robot(object):
             self.wheel_rdx = self.x - math.cos(math.pi / 2.0 - self.angles - self.alpha) * self.big_length
             self.wheel_rdy = self.y + math.sin(math.pi / 2.0 - self.angles - self.alpha) * self.big_length
 
-            points = QPoint(self.x, self.y)
+            points = QPoint(int(self.x), int(self.y))
             # if points in self.points:
             #     self.points.remove(points)
             self.points.append(points)
@@ -211,7 +211,7 @@ class Robot(object):
             self.wheel_ruy = self.wheel_ruy + self.wheel_radius * math.sin(self.angles) * w_angle * tm * self.run_directions
             self.wheel_rdx = self.wheel_rdx + self.wheel_radius * math.cos(self.angles) * w_angle * tm * self.run_directions
             self.wheel_rdy = self.wheel_rdy + self.wheel_radius * math.sin(self.angles) * w_angle * tm * self.run_directions
-            points = QPoint(self.x, self.y)
+            points = QPoint(int(self.x), int(self.y))
             # if points in self.points:
             #     self.points.remove(points)
             self.points.append(points)
