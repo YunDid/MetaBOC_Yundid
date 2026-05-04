@@ -1,9 +1,10 @@
 """
 Maxwell 接入层异常类型与错误检查辅助。
 
-mxwserver 通过 mx.send() 返回字符串而非抛异常。本模块负责把
-非 "Ok" 返回值转成 Python 异常，让上层 Communication 能用统一
-的 try/except 风格处理失败。
+mxwserver 通过 mx.send() 返回字符串而非抛异常。实测 mxwserver
+成功路径返回 "OK"（大写），失败路径返回 "Error" 或其他非 OK 字符串。
+本模块负责把非 OK 返回值转成 Python 异常，让上层 Communication
+能用统一的 try/except 风格处理失败。
 """
 
 
@@ -32,7 +33,8 @@ def check_send_ok(result, context):
     校验 mx.send() 返回值。
 
     Maxwell Python API 的 send() 在失败路径上返回字符串 "Error" 或
-    其他非 "Ok" 值，不抛异常。本函数把非 "Ok" 转成 MaxwellError。
+    其他非 OK 值，不抛异常。成功路径返回 "OK"（实测 mxwserver 行为，大写）。
+    本函数把非 OK 返回值（大小写不敏感）转成 MaxwellError。
 
     Parameters
     ----------
@@ -44,9 +46,9 @@ def check_send_ok(result, context):
     Raises
     ------
     MaxwellError
-        当 result != "Ok" 时抛出。
+        当 result 不是 "OK"（大小写不敏感）时抛出。
     """
-    if result != "Ok":
+    if (result or "").upper() != "OK":
         raise MaxwellError(
             "Maxwell mx.send() failed at [{}]: returned {!r}".format(context, result)
         )

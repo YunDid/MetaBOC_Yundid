@@ -85,7 +85,7 @@ def initialize_chip(wells=None):
     mx.initialize()
 
     result = mx.send(mx.Core().enable_stimulation_power(True))
-    if result != "Ok":
+    if (result or "").upper() != "OK":
         raise MxwserverError(
             "enable_stimulation_power failed: {!r}. The system did not initialize correctly.".format(result)
         )
