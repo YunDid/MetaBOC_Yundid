@@ -32,31 +32,33 @@ class MaxwellSystem(object):
         Parameters
         ----------
         cfg_path : str or Path
-            MaxLab Live 导出的 .cfg 文件路径。
+            MaxLab Live 导出的 .cfg 文件路径。平台用 cfg_loader 解析其中
+            的电极组，不调用 Array.load_config。
         record_electrodes : list[int] or None
-            参与记录的物理电极 ID。校验 cfg 是否覆盖。
+            显式指定记录电极。None 时由 cfg 解析得到（默认推荐）。
         stim_electrodes : list[int] or None
-            候选刺激电极池（≤32）。一次性 route + 上电。
+            候选刺激电极池（≤32）。在 download 前由 select_stimulation_electrodes
+            一次性纳入 routing；download 后由 stim_pool 查 unit + 上电。
         role_mapping : dict or None
             刺激电极角色映射，注入到 StimulationMaxwell。
             如 {"env_left": 15000, "env_right": 15500}
         """
+        # Step 0：把 cfg 路径与 stim 电极池注入 recording，让 connect()
+        #         按显式 select_electrodes + select_stimulation_electrodes
+        #         + route + download 顺序一次性下发 routing。
         if record_electrodes is not None:
             self.recording.set_record_electrodes(record_electrodes)
         self.recording.set_cfg_path(cfg_path)
+        self.recording.set_stim_electrodes(stim_electrodes)
 
-        # Step 1：cfg 加载 + 8 步初始化（在 RecordingMaxwell.connect 内部完成）
+        # Step 1：8 步初始化 + cfg 解析 + 显式 routing + offset 校正
         self.recording.connect()
 
-        # Step 2：stim pool 注册 + route + 上电（如有 stim 电极）
+        # Step 2：stim pool 仅做查 unit + 上电（routing 已在 Step 1 完成）
         if stim_electrodes:
             self.stim_pool = StimPool()
             for electrode in stim_electrodes:
                 self.stim_pool.register_candidate(electrode)
-            # 注意：select_stimulation_electrodes 必须在 array.route() 之前完成。
-            # Phase B stub 阶段不重新 route（cfg 中可能已含 stim 电极配置），
-            # 此处仅做 connect_electrode_to_stimulation + 查询 unit + 上电。
-            # Phase B 后续真机验证时如需重 route，在此扩展 array.select_stimulation_electrodes 调用。
             self.stim_pool.route_and_power_up(self.recording._array)
             self.stimulating.attach_stim_pool(self.stim_pool)
 

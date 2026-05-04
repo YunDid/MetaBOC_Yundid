@@ -1,38 +1,34 @@
 """
-cfg 文件加载与电极存在性校验。
+cfg 文件解析与电极存在性校验。
 
 MetaBOC 平台不实现活性扫描 / 网络检测。这些工作由 MaxLab Live 上位机
-软件完成，导出 .cfg 文件作为平台输入。本模块负责把 cfg 安全加载到
-mxwserver 中，并校验后续实验需要的电极是否已经被路由到放大器。
+软件完成，导出 .cfg 文件作为平台输入。本模块负责把 cfg 文本解析成
+电极列表，交给上层用 array.select_electrodes / select_stimulation_electrodes
+显式 routing，平台不直接调用 Array.load_config（避免黑盒加载，路由权
+完全保留在平台层）。
+
+cfg 文件格式（MaxLab Live 导出的纯文本）：
+    每条记录形如  "<channel>(<electrode>)<x>/<y>"，多条以空白分隔。
+
+接口约定：
+- parse_cfg(cfg_path)         返回 [{"channel", "electrode", "x", "y"}, ...]
+- extract_electrodes(cfg_path) 返回去重保序的 electrode ID 列表
+- validate_record_electrodes(array, expected) 校验 routing 结果覆盖
 """
 
 import os
+import re
 from pathlib import Path
+from typing import Dict, List
 
 from .errors import ConfigError
 
 
-def load_config(array, cfg_path):
-    """
-    从磁盘加载 cfg 文件到指定 Array 对象。
+_CFG_ENTRY_PATTERN = re.compile(r"(\d+)\((\d+)\)([\d.]+)/([\d.]+)")
 
-    Parameters
-    ----------
-    array : maxlab.chip.Array
-        已经创建的 Array 对象。函数内部会先 reset 再 load。
-    cfg_path : str or Path
-        cfg 文件路径。必须存在且可读。
 
-    Returns
-    -------
-    Path
-        实际加载的 cfg 文件绝对路径，用于上层留痕。
-
-    Raises
-    ------
-    ConfigError
-        当 cfg 路径不存在、无权访问、或加载失败时。
-    """
+def _read_cfg_text(cfg_path):
+    """读 cfg 文件并做基础校验。返回纯文本内容。"""
     cfg_path = Path(cfg_path)
     if not cfg_path.exists():
         raise ConfigError("cfg file does not exist: {}".format(cfg_path))
@@ -41,31 +37,73 @@ def load_config(array, cfg_path):
     if not os.access(str(cfg_path), os.R_OK):
         raise ConfigError("cfg file is not readable: {}".format(cfg_path))
 
-    cfg_abs = cfg_path.resolve()
+    with open(str(cfg_path), "r", encoding="utf-8") as handle:
+        return handle.read().strip(), cfg_path.resolve()
 
-    try:
-        array.reset()
-        array.load_config(str(cfg_abs))
-    except Exception as exc:
+
+def parse_cfg(cfg_path) -> List[Dict]:
+    """
+    解析 MaxLab Live 导出的 cfg 文件，返回每条 channel/electrode/坐标记录。
+
+    Returns
+    -------
+    list[dict]
+        [{"channel": int, "electrode": int, "x": float, "y": float}, ...]
+
+    Raises
+    ------
+    ConfigError
+        当 cfg 路径不可读、内容无法匹配 cfg 格式、或 entries 为空时。
+    """
+    raw, cfg_abs = _read_cfg_text(cfg_path)
+
+    entries: List[Dict] = []
+    for match in _CFG_ENTRY_PATTERN.finditer(raw):
+        entries.append({
+            "channel": int(match.group(1)),
+            "electrode": int(match.group(2)),
+            "x": float(match.group(3)),
+            "y": float(match.group(4)),
+        })
+
+    if not entries:
         raise ConfigError(
-            "Failed to load cfg into array: path={} error={!r}".format(cfg_abs, exc)
+            "cfg parse produced 0 entries. File may be empty or format mismatch: {}".format(cfg_abs)
         )
 
-    return cfg_abs
+    return entries
+
+
+def extract_electrodes(cfg_path) -> List[int]:
+    """
+    从 cfg 解析出唯一 electrode ID 列表，按首次出现顺序保留。
+
+    返回的列表直接喂给 `Array.select_electrodes(electrodes)`。stim 电极
+    通常是该列表的子集，由上层显式声明，不从 cfg 推断。
+    """
+    seen = set()
+    electrodes: List[int] = []
+    for entry in parse_cfg(cfg_path):
+        electrode = entry["electrode"]
+        if electrode in seen:
+            continue
+        seen.add(electrode)
+        electrodes.append(electrode)
+    return electrodes
 
 
 def validate_record_electrodes(array, expected_electrodes):
     """
-    校验 cfg 加载后期望的记录电极是否已经被路由到放大器。
+    校验 routing 完成后期望的记录电极是否都已 routed 到放大器。
 
-    cfg 文件可能来自历史实验、对应的电极池可能与当前实验设计不一致。
-    在闭环开始前必须用 query_amplifier_at_electrode 确认每个目标
-    电极都已 routed，否则 recording 会读到空通道。
+    cfg 文件可能与当前实验设计不一致，select_electrodes + route 后
+    某些电极可能因冲突未能 routed。在闭环开始前必须用
+    query_amplifier_at_electrode 严格校验，否则 recording 会读到空通道。
 
     Parameters
     ----------
     array : maxlab.chip.Array
-        已经 load_config 完成的 Array 对象。
+        已经 route + download 完成的 Array 对象。
     expected_electrodes : list[int]
         期望参与记录的电极物理 ID 列表。
 

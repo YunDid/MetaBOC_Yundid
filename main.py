@@ -272,13 +272,25 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
         self.dsb_robot_arm_angle.valueChanged.connect(self.robot_arm_angle_human)
 
         # 切换连接的系统
+        # Phase B：手补 Maxwell 菜单项（不动 .ui，不重生成 Ui_MainWindow.py）。
+        # Phase C 后续若把 .ui 规范化，这段可以拿掉。
+        self.actionMaxwell = QAction(self)
+        self.actionMaxwell.setCheckable(True)
+        self.actionMaxwell.setObjectName("actionMaxwell")
+        self.actionMaxwell.setText("Maxwell MaxOne")
+        self.menuSystem.addAction(self.actionMaxwell)
+
         self.action_group_dev = QActionGroup(self)
         self.action_group_dev.addAction(self.actionMEA_2100)
         self.action_group_dev.addAction(self.actionINTAN_System)
+        self.action_group_dev.addAction(self.actionMaxwell)
         self.action_group_dev.triggered.connect(self.device_changed)
 
         self.actionSet_INTAN_Data_Path.triggered.connect(self.set_intan_data_path)
         self.INTAN_data_path = None    # 需先选择数据保存路径
+
+        # Maxwell 会话参数缓存（Phase B：用 QFileDialog 让用户选 cfg）
+        self.maxwell_cfg_path = None
 
 
     def exit(self):
@@ -475,6 +487,15 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
 
     # ************************ for action **************************
     def add_stimulating(self):
+        if self.actionMaxwell.isChecked():
+            QMessageBox.information(
+                self,
+                "Maxwell stub stage",
+                "Maxwell 专属刺激配置对话框尚未实现（Phase C 计划）。\n"
+                "Phase B 阶段仅验证后端 connect/close 路径，跳过本功能。",
+            )
+            return
+
         if self.stimulate_setting_dialog is None:
             if self.actionMEA_2100.isChecked():
                 sys_ = SYSTEM_DEVICE.MEA2100
@@ -522,6 +543,13 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
                 self.INTAN_channel_signal_dialog = INTANChannelSignalDialog(self, self.imageWidget.mea_ic.recording)
                 self.INTAN_channel_signal_dialog.close_dialog.connect(self.close_intan_channel_signal_dialog)
                 self.INTAN_channel_signal_dialog.show()
+        elif self.actionMaxwell.isChecked():
+            QMessageBox.information(
+                self,
+                "Maxwell stub stage",
+                "Maxwell 通道信号可视化需要 C++ binary 数据流（Phase D 计划）。\n"
+                "Phase B 阶段不开放本功能。",
+            )
 
     def close_channel_signal_dialog(self):
         if self.channel_signal_dialog is not None:
@@ -804,6 +832,30 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
         if state:
             self.imageWidget.update_system(SYSTEM_DEVICE.INTAN)
             self.stimulate_select_dialog.update_system(SYSTEM_DEVICE.INTAN)
+
+        state = self.actionMaxwell.isChecked()
+        if state:
+            cfg_path, _ = QFileDialog.getOpenFileName(
+                self,
+                "Select MaxLab Live cfg file",
+                "",
+                "Maxwell cfg (*.cfg);;All files (*)",
+            )
+            if not cfg_path:
+                # 用户取消选择 → 回退到 MEA2100，避免半连接状态
+                self.actionMEA_2100.setChecked(True)
+                return
+
+            self.maxwell_cfg_path = cfg_path
+            # Phase B 阶段：stim_electrodes / role_mapping 暂用空值，仅验
+            # 证记录链路；Phase C 接入 stim 选择对话框后再注入。
+            self.imageWidget.mea_ic.set_maxwell_session_params(
+                cfg_path=cfg_path,
+                record_electrodes=None,
+                stim_electrodes=None,
+                role_mapping=None,
+            )
+            self.imageWidget.update_system(SYSTEM_DEVICE.MAXWELL)
     
     def setGlobalFont(self):
         """设置全局字体样式：中文使用微软雅黑，英文使用Times New Roman"""

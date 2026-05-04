@@ -27,20 +27,34 @@ class RecordingMaxwell(object):
         self.recording_para = None
         self.spike_detection_para = None
         self.cfg_path = None
-        self.record_electrodes = None
+        self.record_electrodes = None     # 来自 cfg 解析；如显式注入则覆盖
+        self.stim_electrodes = None       # 由上层在 connect 前注入，参与一次性 routing
         self._connected = False
         self._device_available = None  # 缓存设备探测结果，None 表示尚未探测
+        self._array = None
+        self._wells = None
 
     def set_cfg_path(self, cfg_path):
         """
         在 connect() 之前注入 cfg 文件路径。MetaBOC 平台不实现活性扫描，
-        cfg 由 MaxLab Live 完成后导出，平台只做加载。
+        cfg 由 MaxLab Live 完成后导出，平台只用 cfg_loader 解析其中的电极
+        组并显式调用 select_electrodes，不走 Array.load_config 黑盒加载。
         """
         self.cfg_path = cfg_path
 
     def set_record_electrodes(self, electrodes):
-        """注入期望参与记录的物理电极 ID 列表。供 cfg_loader 校验使用。"""
+        """
+        显式注入记录电极列表。如未调用，connect() 会从 cfg 解析得到记录
+        电极并使用。供调试 / 子集复跑使用。
+        """
         self.record_electrodes = list(electrodes)
+
+    def set_stim_electrodes(self, electrodes):
+        """
+        注入候选刺激电极列表。connect() 会在 download 前调用
+        select_stimulation_electrodes，让 stim 电极一次性参与 routing。
+        """
+        self.stim_electrodes = list(electrodes) if electrodes else []
 
     def get_device_count(self):
         """
@@ -70,10 +84,22 @@ class RecordingMaxwell(object):
 
     def connect(self):
         """
-        执行 Maxwell 标准启动序列 + cfg 加载 + 电极校验。
+        执行 Maxwell 标准启动序列 + cfg 解析 + routing + 电极校验。
 
-        Phase B stub：仅完成框架调用，真实数据流接入留待 Phase D 的
-        C++ binary 工程。
+        启动顺序（必须遵守）：
+          1. initialize_chip → 8 步初始化
+          2. 创建 Array("metaboc") 并 reset
+          3. 从 cfg 解析 record_electrodes（如未显式注入）
+          4. array.select_electrodes(record_electrodes)
+          5. 如有 stim_electrodes：array.select_stimulation_electrodes(stim_electrodes)
+          6. array.route()
+          7. array.download(wells)
+          8. wait_after_download + offset_calibration
+          9. validate_record_electrodes 严格覆盖校验
+
+        select_stimulation_electrodes 在 download 前调用是关键 — stim 电极
+        只在这一刻参与 routing；download 后 stim_pool 仅做 query unit + 上电，
+        不再触碰 routing。
         """
         from . import session_lifecycle, cfg_loader
 
@@ -86,20 +112,31 @@ class RecordingMaxwell(object):
 
         wells = session_lifecycle.initialize_chip()
 
-        array = mx.Array("metaboc")
-        cfg_abs = cfg_loader.load_config(array, self.cfg_path)
-        print("Maxwell loaded cfg: {}".format(cfg_abs))
+        if not self.record_electrodes:
+            self.record_electrodes = cfg_loader.extract_electrodes(self.cfg_path)
+            print("Maxwell parsed {} record electrodes from cfg: {}".format(
+                len(self.record_electrodes), self.cfg_path
+            ))
 
-        if self.record_electrodes:
-            report = cfg_loader.validate_record_electrodes(array, self.record_electrodes)
-            print("Maxwell electrode coverage: {}/{} routed.".format(
-                len(report["routed"]), len(self.record_electrodes)
+        array = mx.Array("metaboc")
+        array.reset()
+        array.select_electrodes(self.record_electrodes)
+
+        if self.stim_electrodes:
+            array.select_stimulation_electrodes(self.stim_electrodes)
+            print("Maxwell selected {} stim electrodes for routing.".format(
+                len(self.stim_electrodes)
             ))
 
         array.route()
         array.download(wells)
         session_lifecycle.wait_after_download()
         session_lifecycle.offset_calibration()
+
+        report = cfg_loader.validate_record_electrodes(array, self.record_electrodes)
+        print("Maxwell electrode coverage: {}/{} record electrodes routed.".format(
+            len(report["routed"]), len(self.record_electrodes)
+        ))
 
         self._array = array
         self._wells = wells

@@ -1,9 +1,11 @@
 """
 Maxwell 刺激单元池子化管理。
 
-核心约束：闭环启动前一次性 route 全部候选 stim 电极，运行时只通过
+核心约束：闭环启动前在 download 前由 RecordingMaxwell.connect 调
+`array.select_stimulation_electrodes` 把全部候选 stim 电极一次性纳入
+routing；download 后本类仅做 query stim unit + 上电。运行时通过
 connect_electrode_to_stimulation / disconnect_electrode_from_stimulation
-切换激活子集，禁止在闭环周期内重新 route 或 download。
+切换激活子集，禁止重新 route 或 download。
 
 每个 stim 电极对应一个 stim unit ID（由 mxwserver 在 route 阶段分配）。
 本类负责跟踪映射关系、上电、激活子集状态机、退出时下电。
@@ -59,11 +61,14 @@ class StimPool:
 
     def route_and_power_up(self, array):
         """
-        对所有候选电极执行 connect_electrode_to_stimulation + 查询 unit +
-        重复分配检查 + StimulationUnit 配置上电。
+        对所有候选电极查询 stim unit ID + 重复分配检查 + StimulationUnit
+        配置上电。**不再调 connect_electrode_to_stimulation**，因为 routing
+        已由 RecordingMaxwell.connect 中的 array.select_stimulation_electrodes
+        在 download 前完成。
 
-        必须在 array.select_stimulation_electrodes + array.route +
-        array.download + offset_calibration 完成之后调用。
+        必须在 RecordingMaxwell.connect 完成（即 select_electrodes +
+        select_stimulation_electrodes + route + download + offset_calibration
+        全部就位）之后调用。
 
         Parameters
         ----------
@@ -73,8 +78,8 @@ class StimPool:
         Raises
         ------
         StimUnitError
-            当 stim 电极无可用 unit、或两个电极映射到同一 unit、
-            或 power_up 命令失败时。
+            当 stim 电极未被 routing（select_stimulation_electrodes 漏掉）、
+            或两个电极映射到同一 unit、或 power_up 命令失败时。
         """
         import maxlab as mx
 
@@ -84,19 +89,12 @@ class StimPool:
         assigned_units = set()
 
         for electrode in self._candidates:
-            try:
-                array.connect_electrode_to_stimulation(electrode)
-            except Exception as exc:
-                raise StimUnitError(
-                    "connect_electrode_to_stimulation failed for electrode {}: {!r}".format(
-                        electrode, exc
-                    )
-                )
-
             stim_units = array.query_stimulation_at_electrode(electrode)
             if stim_units is None or (hasattr(stim_units, "__len__") and len(stim_units) == 0):
                 raise StimUnitError(
-                    "No stim unit can be connected to electrode {}".format(electrode)
+                    "No stim unit routed for electrode {}. "
+                    "Was it included in select_stimulation_electrodes "
+                    "before download?".format(electrode)
                 )
 
             unit_id = int(stim_units) if not hasattr(stim_units, "__len__") else int(stim_units[0])
