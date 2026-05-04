@@ -157,11 +157,7 @@ class RecordingMaxwell(object):
                         "Was it included in select_stimulation_electrodes / select_electrodes?".format(stim_el)
                     )
 
-                connect_result = array.connect_electrode_to_stimulation(stim_el)
-                if connect_result == "Error":
-                    raise MxwserverError(
-                        "connect_electrode_to_stimulation returned Error for stim electrode {}.".format(stim_el)
-                    )
+                array.connect_electrode_to_stimulation(stim_el)
 
                 stim_units = array.query_stimulation_at_electrode(stim_el)
                 if stim_units is None or (hasattr(stim_units, "__len__") and len(stim_units) == 0):

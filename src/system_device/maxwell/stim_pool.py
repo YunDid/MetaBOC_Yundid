@@ -4,12 +4,15 @@ Maxwell 刺激单元池子化管理。
 核心约束：闭环启动前所有 stim 电极的 routing + connect_electrode_to_stimulation
 + query unit 都由 RecordingMaxwell.connect 在 download **之前**完成，缓存
 electrode → stim_unit 映射。本类在 download **之后** 只做 StimulationUnit
-配置上电（power_up + connect + voltage_mode + dac_source）。运行时通过
-connect_electrode_to_stimulation / disconnect_electrode_from_stimulation
-切换激活子集，禁止重新 route 或 download。
+配置上电（power_up + connect + voltage_mode + dac_source）。
 
-每个 stim 电极对应一个 stim unit ID。本类负责跟踪映射、上电、激活子集
-状态机、退出时下电。
+运行时切换激活子集走 StimulationUnit.connect(True/False) 通道
+（mx.send(StimulationUnit(unit).connect(...))），禁止再次调用
+array.connect_electrode_to_stimulation / disconnect_electrode_from_stimulation
+（这两个是 download 前的 routing 配置 API，运行时不可用）。
+
+每个 stim 电极对应一个 stim unit ID。本类负责跟踪映射、上电、运行时
+开关状态机、退出时下电。
 """
 
 from .errors import StimUnitError, check_send_ok
@@ -112,6 +115,9 @@ class StimPool:
                 "stim unit {} power_up (electrode {})".format(unit_id, electrode),
             )
 
+        # route_and_power_up 阶段所有 candidate unit 都 connect(True)，
+        # 视为初始全部激活；后续 deactivate(...) 才把它们逐个关掉。
+        self._active_electrodes = set(self._candidates)
         self._array = array
 
     def get_unit(self, electrode_id):
@@ -126,10 +132,13 @@ class StimPool:
 
     def activate(self, electrode_ids):
         """
-        运行时激活给定电极子集（connect 到 stim 路径）。
+        运行时接通给定电极对应的 stim unit 输出（connect=True）。
 
+        实现：mx.send(mx.StimulationUnit(unit_id).connect(True))。
         如果电极已经 active，幂等忽略。如果电极不在候选池中，抛异常。
         """
+        import maxlab as mx
+
         if self._array is None:
             raise StimUnitError("StimPool not initialized. Call route_and_power_up first.")
 
@@ -140,28 +149,32 @@ class StimPool:
                 )
             if electrode in self._active_electrodes:
                 continue
-            try:
-                self._array.connect_electrode_to_stimulation(electrode)
-            except Exception as exc:
-                raise StimUnitError(
-                    "Runtime activate failed for electrode {}: {!r}".format(electrode, exc)
-                )
+            unit_id = self._electrode_to_unit[electrode]
+            check_send_ok(
+                mx.send(mx.StimulationUnit(unit_id).connect(True)),
+                "stim unit {} connect(True) (electrode {})".format(unit_id, electrode),
+            )
             self._active_electrodes.add(electrode)
 
     def deactivate(self, electrode_ids):
-        """运行时停用给定电极子集（disconnect 与 stim 路径）。幂等。"""
+        """
+        运行时断开给定电极对应的 stim unit 输出（connect=False）。幂等。
+
+        实现：mx.send(mx.StimulationUnit(unit_id).connect(False))。
+        """
+        import maxlab as mx
+
         if self._array is None:
             raise StimUnitError("StimPool not initialized.")
 
         for electrode in electrode_ids:
             if electrode not in self._active_electrodes:
                 continue
-            try:
-                self._array.disconnect_electrode_from_stimulation(electrode)
-            except Exception as exc:
-                raise StimUnitError(
-                    "Runtime deactivate failed for electrode {}: {!r}".format(electrode, exc)
-                )
+            unit_id = self._electrode_to_unit[electrode]
+            check_send_ok(
+                mx.send(mx.StimulationUnit(unit_id).connect(False)),
+                "stim unit {} connect(False) (electrode {})".format(unit_id, electrode),
+            )
             self._active_electrodes.discard(electrode)
 
     def get_active_electrodes(self):
