@@ -1,0 +1,46 @@
+# MetaBOC Linux 依赖清单（Python 3.10，Maxwell 官方机器配套）
+#
+# 适用环境：基于 /home/maxwell/MaxLab/python/bin/python3 创建的 venv
+# 创建命令：
+#   /home/maxwell/MaxLab/python/bin/python3 -m venv ~/metaboc-env --system-site-packages
+#   source ~/metaboc-env/bin/activate
+#   pip install -r requirements_linux_py310.txt
+#
+# 不含：
+#   - maxlab：通过 --system-site-packages 从 Maxwell Python 透传
+#   - pythonnet：仅 Windows MCS .NET 互操作需要
+#
+# 与 PKM 卡片 [[MetaBOC - Linux 环境配置与 Python 3.6 依赖版本锁定]] 的区别：
+#   该卡片为 Python 3.6 锁定，本文件为 Maxwell 官方机器实际的 Python 3.10。
+#   3.10 兼容更现代的包版本，约束放宽。
+
+# GUI
+PyQt5>=5.15,<6
+PyQtChart>=5.15,<6
+pyqtgraph>=0.13
+
+# 科学计算
+numpy>=1.21,<2
+scipy>=1.7
+matplotlib>=3.5
+pandas>=1.4
+seaborn>=0.12
+h5py>=3.7
+scikit-learn>=1.1
+Pillow>=9
+
+# 深度学习
+torch>=1.13
+pytorch_lightning>=1.9
+torchmetrics>=0.11
+
+# 优化控制
+casadi>=3.6
+do-mpc>=4.5
+
+# 其他
+PyOpenGL>=3.1
+watchdog>=3
+PyYAML>=6
+loguru>=0.7
+tqdm>=4.64
