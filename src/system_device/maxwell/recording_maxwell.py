@@ -33,6 +33,9 @@ class RecordingMaxwell(object):
         self._device_available = None  # 缓存设备探测结果，None 表示尚未探测
         self._array = None
         self._wells = None
+        # download 前 connect_electrode_to_stimulation 完成后缓存的 electrode -> stim unit
+        # 由 stim_pool 在 download 后做 StimulationUnit 上电时直接使用。
+        self._stim_electrode_to_unit = {}
 
     def set_cfg_path(self, cfg_path):
         """
@@ -84,22 +87,33 @@ class RecordingMaxwell(object):
 
     def connect(self):
         """
-        执行 Maxwell 标准启动序列 + cfg 解析 + routing + 电极校验。
+        执行 Maxwell 标准启动序列 + cfg 解析 + routing + stim 单元映射 + 校验。
 
-        启动顺序（必须遵守）：
-          1. initialize_chip → 8 步初始化
-          2. 创建 Array("metaboc") 并 reset
-          3. 从 cfg 解析 record_electrodes（如未显式注入）
+        启动顺序（与 Maxwell 官方 closed_loop tutorial 与 Exp_code 实测路径
+        对齐，必须严格遵守）：
+          1. initialize_chip(wells)            # mx.initialize + enable_stimulation_power
+                                               # + waitInit + activate(wells)
+          2. 从 cfg 解析 record_electrodes      # 若未显式注入
+          3. array = mx.Array("metaboc")
+             array.reset()
+             array.clear_selected_electrodes()
           4. array.select_electrodes(record_electrodes)
           5. 如有 stim_electrodes：array.select_stimulation_electrodes(stim_electrodes)
           6. array.route()
-          7. array.download(wells)
-          8. wait_after_download + offset_calibration
-          9. validate_record_electrodes 严格覆盖校验
+          7. **for each stim_el in stim_electrodes (download 之前)：**
+                a. _has_routed_amplifier(stim_el) 校验
+                b. array.connect_electrode_to_stimulation(stim_el)
+                c. units = array.query_stimulation_at_electrode(stim_el)
+                d. 缓存 self._stim_electrode_to_unit[stim_el] = unit
+                e. 重复分配检查
+          8. array.download(wells)
+          9. wait_after_download + offset_calibration
+          10. validate_record_electrodes 严格覆盖校验
 
-        select_stimulation_electrodes 在 download 前调用是关键 — stim 电极
-        只在这一刻参与 routing；download 后 stim_pool 仅做 query unit + 上电，
-        不再触碰 routing。
+        关键边界：connect_electrode_to_stimulation 与 query_stimulation_at_electrode
+        必须在 download 之前调用 — 这是建立 stim 路由的步骤；download 之后再调
+        会得到空 unit / Error 返回。stim_pool.route_and_power_up 在 download
+        之后只做 StimulationUnit 上电，使用本方法缓存的 _stim_electrode_to_unit。
         """
         from . import session_lifecycle, cfg_loader
 
@@ -120,6 +134,7 @@ class RecordingMaxwell(object):
 
         array = mx.Array("metaboc")
         array.reset()
+        array.clear_selected_electrodes()
         array.select_electrodes(self.record_electrodes)
 
         if self.stim_electrodes:
@@ -129,6 +144,46 @@ class RecordingMaxwell(object):
             ))
 
         array.route()
+
+        # download 前：建立 stim 电极 → stim unit 映射
+        self._stim_electrode_to_unit = {}
+        if self.stim_electrodes:
+            assigned_units = set()
+            for stim_el in self.stim_electrodes:
+                amp = array.query_amplifier_at_electrode(stim_el)
+                if amp is None or (hasattr(amp, "__len__") and len(amp) == 0):
+                    raise MxwserverError(
+                        "stim electrode {} not routed to amplifier; cannot connect to stimulation. "
+                        "Was it included in select_stimulation_electrodes / select_electrodes?".format(stim_el)
+                    )
+
+                connect_result = array.connect_electrode_to_stimulation(stim_el)
+                if connect_result == "Error":
+                    raise MxwserverError(
+                        "connect_electrode_to_stimulation returned Error for stim electrode {}.".format(stim_el)
+                    )
+
+                stim_units = array.query_stimulation_at_electrode(stim_el)
+                if stim_units is None or (hasattr(stim_units, "__len__") and len(stim_units) == 0):
+                    raise MxwserverError(
+                        "No stim unit available for electrode {} after connect_electrode_to_stimulation.".format(stim_el)
+                    )
+
+                unit_id = int(stim_units) if not hasattr(stim_units, "__len__") else int(stim_units[0])
+                if unit_id in assigned_units:
+                    raise MxwserverError(
+                        "Stim unit {} already assigned to a previous stim electrode. "
+                        "Two stim electrodes mapped to same unit; pick a different electrode for {}.".format(
+                            unit_id, stim_el
+                        )
+                    )
+                assigned_units.add(unit_id)
+                self._stim_electrode_to_unit[stim_el] = unit_id
+            print("Maxwell stim mapping: {} electrodes → units {}".format(
+                len(self._stim_electrode_to_unit),
+                sorted(self._stim_electrode_to_unit.values()),
+            ))
+
         array.download(wells)
         session_lifecycle.wait_after_download()
         session_lifecycle.offset_calibration()

@@ -1,14 +1,15 @@
 """
 Maxwell 刺激单元池子化管理。
 
-核心约束：闭环启动前在 download 前由 RecordingMaxwell.connect 调
-`array.select_stimulation_electrodes` 把全部候选 stim 电极一次性纳入
-routing；download 后本类仅做 query stim unit + 上电。运行时通过
+核心约束：闭环启动前所有 stim 电极的 routing + connect_electrode_to_stimulation
++ query unit 都由 RecordingMaxwell.connect 在 download **之前**完成，缓存
+electrode → stim_unit 映射。本类在 download **之后** 只做 StimulationUnit
+配置上电（power_up + connect + voltage_mode + dac_source）。运行时通过
 connect_electrode_to_stimulation / disconnect_electrode_from_stimulation
 切换激活子集，禁止重新 route 或 download。
 
-每个 stim 电极对应一个 stim unit ID（由 mxwserver 在 route 阶段分配）。
-本类负责跟踪映射关系、上电、激活子集状态机、退出时下电。
+每个 stim 电极对应一个 stim unit ID。本类负责跟踪映射、上电、激活子集
+状态机、退出时下电。
 """
 
 from .errors import StimUnitError, check_send_ok
@@ -59,54 +60,46 @@ class StimPool:
             )
         self._candidates.append(electrode_id)
 
-    def route_and_power_up(self, array):
+    def route_and_power_up(self, array, electrode_to_unit):
         """
-        对所有候选电极查询 stim unit ID + 重复分配检查 + StimulationUnit
-        配置上电。**不再调 connect_electrode_to_stimulation**，因为 routing
-        已由 RecordingMaxwell.connect 中的 array.select_stimulation_electrodes
-        在 download 前完成。
+        对 RecordingMaxwell 在 download 前已建立的 electrode → stim_unit
+        映射做 StimulationUnit 配置上电。**本方法不调 connect_electrode_to_stimulation
+        也不调 query_stimulation_at_electrode**，这两步已在 RecordingMaxwell.connect
+        的 download 之前完成。
 
-        必须在 RecordingMaxwell.connect 完成（即 select_electrodes +
-        select_stimulation_electrodes + route + download + offset_calibration
-        全部就位）之后调用。
+        必须在 RecordingMaxwell.connect 完成之后（即 download / wait /
+        offset 全部就位）调用。
 
         Parameters
         ----------
         array : maxlab.chip.Array
-            已经 route + download 完成的 Array 对象。
+            已经 route + connect_electrode_to_stimulation + download
+            完成的 Array 对象。
+        electrode_to_unit : dict[int, int]
+            RecordingMaxwell._stim_electrode_to_unit 缓存的映射。
 
         Raises
         ------
         StimUnitError
-            当 stim 电极未被 routing（select_stimulation_electrodes 漏掉）、
-            或两个电极映射到同一 unit、或 power_up 命令失败时。
+            当映射缺失某个候选电极、或 power_up 命令失败时。
         """
         import maxlab as mx
 
         if self._array is not None:
             raise StimUnitError("StimPool.route_and_power_up called twice.")
 
-        assigned_units = set()
+        if not isinstance(electrode_to_unit, dict):
+            raise StimUnitError(
+                "route_and_power_up requires electrode_to_unit dict from RecordingMaxwell."
+            )
 
         for electrode in self._candidates:
-            stim_units = array.query_stimulation_at_electrode(electrode)
-            if stim_units is None or (hasattr(stim_units, "__len__") and len(stim_units) == 0):
+            if electrode not in electrode_to_unit:
                 raise StimUnitError(
-                    "No stim unit routed for electrode {}. "
-                    "Was it included in select_stimulation_electrodes "
-                    "before download?".format(electrode)
+                    "Electrode {} missing from RecordingMaxwell._stim_electrode_to_unit; "
+                    "stim_pool candidates and stim_electrodes must be consistent.".format(electrode)
                 )
-
-            unit_id = int(stim_units) if not hasattr(stim_units, "__len__") else int(stim_units[0])
-
-            if unit_id in assigned_units:
-                raise StimUnitError(
-                    "Stim unit {} already assigned. "
-                    "Two electrodes mapped to same unit is not allowed. "
-                    "Pick a neighboring electrode for {}.".format(unit_id, electrode)
-                )
-
-            assigned_units.add(unit_id)
+            unit_id = int(electrode_to_unit[electrode])
             self._electrode_to_unit[electrode] = unit_id
 
             cmd = (mx.StimulationUnit(unit_id)

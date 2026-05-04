@@ -44,22 +44,27 @@ class MaxwellSystem(object):
             如 {"env_left": 15000, "env_right": 15500}
         """
         # Step 0：把 cfg 路径与 stim 电极池注入 recording，让 connect()
-        #         按显式 select_electrodes + select_stimulation_electrodes
-        #         + route + download 顺序一次性下发 routing。
+        #         走 select_electrodes + select_stimulation_electrodes + route
+        #         → connect_electrode_to_stimulation + query unit (download 前)
+        #         → download → offset 的完整链路。
         if record_electrodes is not None:
             self.recording.set_record_electrodes(record_electrodes)
         self.recording.set_cfg_path(cfg_path)
         self.recording.set_stim_electrodes(stim_electrodes)
 
-        # Step 1：8 步初始化 + cfg 解析 + 显式 routing + offset 校正
+        # Step 1：8 步初始化 + cfg 解析 + 显式 routing + stim 单元映射 + offset
         self.recording.connect()
 
-        # Step 2：stim pool 仅做查 unit + 上电（routing 已在 Step 1 完成）
+        # Step 2：stim pool 用 RecordingMaxwell 缓存的 electrode→unit 映射
+        #         做 StimulationUnit 配置上电（download 之后）
         if stim_electrodes:
             self.stim_pool = StimPool()
             for electrode in stim_electrodes:
                 self.stim_pool.register_candidate(electrode)
-            self.stim_pool.route_and_power_up(self.recording._array)
+            self.stim_pool.route_and_power_up(
+                self.recording._array,
+                self.recording._stim_electrode_to_unit,
+            )
             self.stimulating.attach_stim_pool(self.stim_pool)
 
         if role_mapping:
