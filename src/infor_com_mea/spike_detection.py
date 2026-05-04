@@ -55,8 +55,6 @@ class SpikeDetection(QThread):
 
 
     def run(self):
-        from time import perf_counter as _pc
-        _t_start = _pc()
         try:
             # t1 = time.time()
             filtered = signal.filtfilt(self.b, self.a, self.data)
@@ -86,12 +84,6 @@ class SpikeDetection(QThread):
                 self.spike_num = np.sum(spikes)
         except:
             print("Error on spike detection!...")
-        finally:
-            try:
-                from src.system_device.timing_logger import TimingLogger
-                TimingLogger.get().log_spike_async((_pc() - _t_start) * 1000.0)
-            except Exception:
-                pass
             # return self.spike_num
 
         # print("for time", time.time() - t2)

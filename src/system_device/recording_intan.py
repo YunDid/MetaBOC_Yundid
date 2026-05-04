@@ -106,20 +106,11 @@ class RecordingIntan(QObject):
         """
         返回记录信号, out_left, out_right
         """
-        from src.system_device.timing_logger import TimingLogger
-        from time import perf_counter
-        _logger = TimingLogger.get()
-
-        _t_a = perf_counter()
         data = self.get_recording_signal_all_channel()
         sti_time = self.get_recording_sti_time_data()
-        _t_b = perf_counter()
-        _logger.mark("stage1_acquire_ms", (_t_b - _t_a) * 1000.0)
 
         # 需对数据进行筛选，剔除刺激后10ms内数据 TODO 剔除刺激伪迹
         data = self.get_spike_data_from_channel_data(data, sti_time)
-        _t_c = perf_counter()
-        _logger.mark("stage2_artifact_ms", (_t_c - _t_b) * 1000.0)
 
         if sti_time.max() > 0:
             print(30*"===")
@@ -152,8 +143,6 @@ class RecordingIntan(QObject):
                 right_spike.append(spikes_num)
         except:
             print("Error on right spikes detection...")
-
-        _logger.mark("stage3_spike_main_ms", (perf_counter() - _t_c) * 1000.0)
 
 
         # # 每个通道数据合并，只计算一次spike

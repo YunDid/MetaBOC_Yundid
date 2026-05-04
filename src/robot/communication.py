@@ -223,10 +223,7 @@ class Communication(object):
                 pass
 
         if (left_hit or right_hit) and self.task == TASK.Obstacle_Avoidance and self.mode_train:
-            _wait_t0 = time.perf_counter()
             time.sleep(4)
-            from src.system_device.timing_logger import TimingLogger
-            TimingLogger.get().add_protocol_wait((time.perf_counter() - _wait_t0) * 1000.0)
             pass
         elif left_id_change and right_id_change and self.mode_train:
             """
@@ -234,10 +231,7 @@ class Communication(object):
             如果是测试阶段，则小车只是暂停，不施加奖励刺激；
             如果是训练阶段，会自动施加奖励刺激
             """
-            _wait_t0 = time.perf_counter()
             time.sleep(0.11)
-            from src.system_device.timing_logger import TimingLogger
-            TimingLogger.get().add_protocol_wait((time.perf_counter() - _wait_t0) * 1000.0)
 
         if self.times >= 3:    # 控制信号更新频次
             self.times = 0
@@ -280,14 +274,8 @@ class Communication(object):
                         self.times = self.times + 1
                         return
 
-            from src.system_device.timing_logger import TimingLogger as _TL
-            from time import perf_counter as _pc
-            _stim_logger = _TL.get()
-
             if not DYNAMIC_USED:
-                _t_enc = _pc()
                 sti_l, sti_r = self.en_de_code.encode(left, right, ang_dis_left, ang_dis_right)  # 环境信息编码为刺激频率
-                _stim_logger.mark("stage4_encode_ms", (_pc() - _t_enc) * 1000.0)
 
 
             if len(self.left_sti) > 100:
@@ -296,9 +284,7 @@ class Communication(object):
 
             self.left_sti.append(sti_l)    # 随机频率较难直接计算，先不进行可视化
             self.right_sti.append(sti_r)
-            _t_stim = _pc()
             self.stimulation.update_record_stimulation(sti_l, sti_r)
-            _stim_logger.mark("stage4_stim_tcp_ms", (_pc() - _t_stim) * 1000.0)
         
         self.times = self.times + 1
 
@@ -398,10 +384,6 @@ class Communication(object):
         """
         每100ms更新一次
         """
-        from src.system_device.timing_logger import TimingLogger
-        from time import perf_counter
-        _logger = TimingLogger.get()
-
         left_spike, right_spike = self.recording.get_recording()    # 从MEA获取数据：特定时间内的
 
         # 动力学模型控制，获取输入的spike信号
@@ -428,9 +410,7 @@ class Communication(object):
         self.left_spikes.append(left)
         self.right_spikes.append(right)
 
-        _t_dec = perf_counter()
         ctrol_left, ctrol_right = self.en_de_code.decode(left, right, min_dis_left, min_dis_right)
-        _logger.mark("stage3_decode_ms", (perf_counter() - _t_dec) * 1000.0)
 
 
         # if left_hit or right_hit:

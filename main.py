@@ -423,25 +423,20 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
 
 
     def update_run(self):
-        from src.system_device.timing_logger import TimingLogger
-        TimingLogger.get().begin_cycle()
-        try:
-            v = self.dsb_velocity.value()
-            left_fre = self.dsb_left_wheel_fre.value()
-            right_fre = self.dsb_right_wheel_fre.value()
-            if self.radioButton_human.isChecked():
-                self.imageWidget.update_robot(left_fre, right_fre, self.update_time, 0)   # 0为人为控制
-            elif self.radioButton_mea.isChecked():
-                self.imageWidget.update_robot(left_fre, right_fre, self.update_time, 1)   # 1为mea控制虚拟环境
-            elif self.radioButton_human_real.isChecked():
-                self.imageWidget.update_robot(left_fre, right_fre, self.update_time, 2)   # 2为人为控制真实环境
-            elif self.radioButton_real_control.isChecked():
-                self.imageWidget.update_robot(left_fre, right_fre, self.update_time, 3)   # 3为mea控制真实环境
-            if self.timer_run is not None:
-                self.timer_run.start(self.update_time)
-        finally:
-            TimingLogger.get().end_cycle()
-        
+        v = self.dsb_velocity.value()
+        left_fre = self.dsb_left_wheel_fre.value()
+        right_fre = self.dsb_right_wheel_fre.value()
+        if self.radioButton_human.isChecked():
+            self.imageWidget.update_robot(left_fre, right_fre, self.update_time, 0)   # 0为人为控制
+        elif self.radioButton_mea.isChecked():
+            self.imageWidget.update_robot(left_fre, right_fre, self.update_time, 1)   # 1为mea控制虚拟环境
+        elif self.radioButton_human_real.isChecked():
+            self.imageWidget.update_robot(left_fre, right_fre, self.update_time, 2)   # 2为人为控制真实环境
+        elif self.radioButton_real_control.isChecked():
+            self.imageWidget.update_robot(left_fre, right_fre, self.update_time, 3)   # 3为mea控制真实环境
+        if self.timer_run is not None:
+            self.timer_run.start(self.update_time)
+
         tim = (self.all_time + time.time() - self.current_time) / 60
         self.dsb_current_time.setValue(tim)
         self.spb_number_hints.setValue(self.imageWidget.robot.hits)
