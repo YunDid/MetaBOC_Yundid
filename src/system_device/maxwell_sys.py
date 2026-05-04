@@ -67,10 +67,20 @@ class MaxwellSystem(object):
             )
             self.stimulating.attach_stim_pool(self.stim_pool)
 
-        if role_mapping:
-            self.stimulating.set_role_mapping(role_mapping)
+            # 角色绑定优先级：显式 role_mapping > stim_electrodes 顺序约定。
+            # 当前 GUI 入口固定 stim_electrodes = [left_wheel, right_wheel] 两元素，
+            # 顺序约定即可覆盖；role_mapping 留作未来角色扩展（如 reward）使用。
+            if role_mapping:
+                self.stimulating.set_role_mapping(role_mapping)
+            elif len(stim_electrodes) >= 2:
+                self.stimulating.set_role_units(stim_electrodes[0], stim_electrodes[1])
+            else:
+                print(
+                    "Maxwell stim: only {} electrode(s) registered; left/right "
+                    "wheel roles not bound.".format(len(stim_electrodes))
+                )
 
-        # Step 3：标记 stimulation 已就绪
+        # Step 3：标记 stimulation 已就绪（未绑定 left/right unit 时退化为 recording-only）
         self.stimulating.initial_device()
 
     def stop_connect(self):

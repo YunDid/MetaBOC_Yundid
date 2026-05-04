@@ -846,52 +846,74 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
                 self.actionMEA_2100.setChecked(True)
                 return
 
-            # Phase B 候选 stim 池输入：QInputDialog 收逗号分隔电极 ID。
-            # 留空 → recording-only（向后兼容，不创建 stim_pool）。
-            # role_mapping 仍传 None；Phase C 在 add_stimulating 触发的
-            # stim 配置对话框里分配 left / right / reward 角色。
-            stim_text, ok = QInputDialog.getText(
+            # 当前实验范式固定 2 个刺激电极：第 1 个 = 左轮，第 2 个 = 右轮。
+            # 左右切换通过 stim_unit 输出开关实现（共享 DAC0），同一时刻
+            # 只允许一侧 unit connect=True，避免串扰；双侧奖励刺激时两
+            # unit 同时 connect=True，由同一 sequence 同步驱动。
+            #
+            # 对应卡片：
+            #   - [[Maxwell - 路由层与 unit 输出层的双层 connect 语义]]
+            #   - [[MetaBOC - cfg 文件解析与显式路由策略]]
+            left_text, ok = QInputDialog.getText(
                 self,
-                "Stim electrode pool",
-                "候选刺激电极 ID（逗号分隔，≤32，留空则跳过 stim 链路）：\n"
-                "例如: 14589,5704",
+                "刺激电极配置 — 左轮",
+                "请输入「左轮」对应的刺激电极 ID（整数）：\n\n"
+                "MetaBOC 当前实验范式固定 2 个刺激电极：\n"
+                "  • 左轮（先输入）：触发左侧环境 / 惩罚 / 奖励刺激\n"
+                "  • 右轮（下一步输入）：触发右侧刺激\n"
+                "  • 双侧奖励刺激同时驱动两个电极\n\n"
+                "电极 ID 必须在 cfg 已 routing 的范围内，且\n"
+                "两个电极不能映射到同一个 stim_unit（冲突由\n"
+                "MaxLab Live 的 mapping_preflight 预先筛选）。",
             )
-            if not ok:
+            if not ok or not left_text.strip():
                 self.actionMEA_2100.setChecked(True)
                 return
 
-            stim_electrodes = None
-            if stim_text.strip():
-                try:
-                    stim_electrodes = [
-                        int(x.strip()) for x in stim_text.split(",") if x.strip()
-                    ]
-                except ValueError as exc:
-                    QMessageBox.warning(
-                        self,
-                        "Stim 电极解析失败",
-                        "无法把输入解析为电极 ID 列表：{}\n"
-                        "请输入数字 ID 用逗号分隔，如 14589,5704。".format(exc),
-                    )
-                    self.actionMEA_2100.setChecked(True)
-                    return
-                if len(stim_electrodes) > 32:
-                    QMessageBox.warning(
-                        self,
-                        "Stim 候选池超限",
-                        "Maxwell 单芯片最多 32 个 stim unit，当前输入 {} 个。".format(
-                            len(stim_electrodes)
-                        ),
-                    )
-                    self.actionMEA_2100.setChecked(True)
-                    return
+            right_text, ok = QInputDialog.getText(
+                self,
+                "刺激电极配置 — 右轮",
+                "请输入「右轮」对应的刺激电极 ID（整数）：",
+            )
+            if not ok or not right_text.strip():
+                self.actionMEA_2100.setChecked(True)
+                return
+
+            try:
+                left_id = int(left_text.strip())
+                right_id = int(right_text.strip())
+            except ValueError as exc:
+                QMessageBox.warning(
+                    self,
+                    "电极 ID 解析失败",
+                    "无法把输入解析为电极 ID：{}\n"
+                    "请输入纯数字。".format(exc),
+                )
+                self.actionMEA_2100.setChecked(True)
+                return
+
+            if left_id == right_id:
+                QMessageBox.warning(
+                    self,
+                    "左右电极冲突",
+                    "左轮与右轮不能使用同一个电极 ID（{}）。\n"
+                    "请重新切换到 Maxwell 并输入两个不同的电极。".format(left_id),
+                )
+                self.actionMEA_2100.setChecked(True)
+                return
+
+            stim_electrodes = [left_id, right_id]
+            role_mapping = {
+                "left_wheel": left_id,
+                "right_wheel": right_id,
+            }
 
             self.maxwell_cfg_path = cfg_path
             self.imageWidget.mea_ic.set_maxwell_session_params(
                 cfg_path=cfg_path,
                 record_electrodes=None,
                 stim_electrodes=stim_electrodes,
-                role_mapping=None,
+                role_mapping=role_mapping,
             )
             self.imageWidget.update_system(SYSTEM_DEVICE.MAXWELL)
     
