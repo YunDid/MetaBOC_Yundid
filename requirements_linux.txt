@@ -1,0 +1,42 @@
+# MetaBOC Linux 依赖锁定清单（Python 3.6 兼容）
+# 依据：[[MetaBOC - Linux 环境配置与 Python 3.6 依赖版本锁定]]
+#
+# 用法：
+#   conda create -n metaboc python=3.6 -y
+#   conda activate metaboc
+#   pip install -r requirements_linux.txt
+#
+# 注意：
+#   - 不安装 pythonnet（仅 Windows MCS .NET 互操作需要，Linux 通过条件分支绕过）
+#   - maxlab 不在此清单（Maxwell 官方 Linux 机器系统自带，conda env 需另行链接）
+
+# GUI
+PyQt5==5.15.4
+PyQtChart==5.15.4
+pyqtgraph==0.11.1
+
+# 科学计算
+numpy==1.19.5
+scipy==1.5.4
+matplotlib==3.3.4
+pandas==1.1.5
+seaborn==0.11.2
+h5py==3.1.0
+scikit-learn==0.24.2
+Pillow==8.4.0
+
+# 深度学习
+torch==1.10.2
+pytorch_lightning==1.5.10
+torchmetrics==0.8.2
+
+# 优化控制
+casadi==3.5.5
+do-mpc==4.3.3
+
+# 其他
+PyOpenGL==3.1.6
+watchdog==2.3.1
+PyYAML==6.0.1
+loguru==0.7.3
+tqdm==4.64.1
