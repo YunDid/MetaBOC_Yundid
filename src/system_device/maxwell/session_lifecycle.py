@@ -22,8 +22,13 @@ def check_mxwserver_alive():
     """
     探测 mxwserver 是否运行可达。
 
-    通过发送一个无副作用的 system Event 命令做握手。如果 mxwserver
-    未运行或不可达，maxlab 内部会抛出连接异常或返回非 "Ok" 字符串。
+    使用 maxlab.query_DAC_lsb_mV() 作为探活调用：无参数、无副作用，
+    只查询 DAC 硬件常数。该函数内部会与 mxwserver 通信，server 不可达
+    时抛异常，可达时返回非空字符串。
+
+    禁止用 mx.system.Event 探活——Event 真实签名是
+    (well_id, event_type, user_id, properties)，会触发 status_out 事件
+    并记入数据流，对实验状态有侵入。
 
     Returns
     -------
@@ -33,20 +38,22 @@ def check_mxwserver_alive():
     Raises
     ------
     MxwserverError
-        当 mxwserver 不可达或返回失败状态。
+        当 mxwserver 不可达或返回空值。
     """
     import maxlab as mx
 
     try:
-        result = mx.send(mx.system.Event(0))
+        result = mx.query_DAC_lsb_mV()
     except Exception as exc:
         raise MxwserverError(
-            "mxwserver probe raised exception: {!r}. Check whether mxwserver is running.".format(exc)
+            "mxwserver probe (query_DAC_lsb_mV) raised: {!r}. "
+            "Check whether mxwserver is running and reachable.".format(exc)
         )
 
-    if result != "Ok":
+    if not result:
         raise MxwserverError(
-            "mxwserver probe returned {!r}. Server may be initializing or unreachable.".format(result)
+            "mxwserver probe (query_DAC_lsb_mV) returned empty value: {!r}. "
+            "Server may be initializing or in degraded state.".format(result)
         )
     return True
 
