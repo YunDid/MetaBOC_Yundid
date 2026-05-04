@@ -13,8 +13,15 @@ from datetime import datetime
 
 from threading import Thread
 
-from src.infor_com_mea.recording import Recording
-from src.infor_com_mea.stimulation import Stimulation
+from src.platform_config import MCS_AVAILABLE
+
+if MCS_AVAILABLE:
+    from src.infor_com_mea.recording import Recording
+    from src.infor_com_mea.stimulation import Stimulation
+else:
+    Recording = None
+    Stimulation = None
+
 from src.robot.encode_decode import EncodingDecoding
 
 from src.robot.task import TASK, MAP, SYSTEM_DEVICE
@@ -35,9 +42,15 @@ class Communication(object):
         self.mea_right = out_r
 
         self.device_type = SYSTEM_DEVICE.MEA2100
-        self.recording = Recording()
-        self.stimulation = Stimulation()
-        self.stimulation.set_recording(self.recording)
+        if MCS_AVAILABLE:
+            self.recording = Recording()
+            self.stimulation = Stimulation()
+            self.stimulation.set_recording(self.recording)
+        else:
+            # Linux 等无 MCS 环境：默认状态没有 MEA2100 实例，
+            # 等用户从 GUI 切到 INTAN/MAXWELL 时再激活
+            self.recording = None
+            self.stimulation = None
 
         self.intan_data_path = None
 
@@ -49,11 +62,14 @@ class Communication(object):
         self.maxwell_sys = None
 
         # 选择和设定当前连接的系统
-        device_cont = self.recording.get_device_count()
-        if device_cont < 1:
-            print("MEA device is not found!...")
+        if MCS_AVAILABLE and self.recording is not None:
+            device_cont = self.recording.get_device_count()
+            if device_cont < 1:
+                print("MEA device is not found!...")
+            else:
+                self.stimulation.initial_device()
         else:
-            self.stimulation.initial_device()
+            print("MCS not available on this platform; MEA2100 path disabled.")
 
         self.mode_train = True    # 是否是训练模式
 
@@ -137,8 +153,12 @@ class Communication(object):
         self.maxwell_role_mapping = role_mapping
     
     def connect_to_mea2100(self):
+        if not MCS_AVAILABLE:
+            print("MCS not available on this platform; cannot connect to MEA2100.")
+            return
+
         if self.device_type == SYSTEM_DEVICE.INTAN:
-            
+
             # 首先安全断开连接
             self.intan_sys.stop_connect()
 
@@ -235,11 +255,14 @@ class Communication(object):
 
     # 用于设置奖惩刺激的信号
     def set_stimulating_signal(self, sig):
-        self.stimulation.set_sti_signal(sig)
-        self.recording.set_record_para(sig)
+        if self.stimulation is not None:
+            self.stimulation.set_sti_signal(sig)
+        if self.recording is not None:
+            self.recording.set_record_para(sig)
 
     def set_spike_detection_para(self, para):
-        self.recording.set_spike_detection_para(para)
+        if self.recording is not None:
+            self.recording.set_spike_detection_para(para)
 
     def set_training_mode(self, state):
         self.mode_train = state

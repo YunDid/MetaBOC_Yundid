@@ -11,8 +11,15 @@ import h5py
 import time
 from datetime import datetime
 
-from src.infor_com_mea.recording import Recording
-from src.infor_com_mea.stimulation import Stimulation
+from src.platform_config import MCS_AVAILABLE
+
+if MCS_AVAILABLE:
+    from src.infor_com_mea.recording import Recording
+    from src.infor_com_mea.stimulation import Stimulation
+else:
+    Recording = None
+    Stimulation = None
+
 from src.robot.encode_decode import EncodingDecoding
 
 from src.robot.task import TASK, MAP
@@ -104,11 +111,11 @@ class DynamicM_Control(object):
 
         # 0626m1
 
-        l_ckpt_json = 'C:/Users/Administrator/Desktop/nationalBrainCode/src/dynamic_model/checkpoints/20250626/m3_left.json'
-        l_ckpt_path = 'C:/Users/Administrator/Desktop/nationalBrainCode/src/dynamic_model/checkpoints/20250626/m3_left.pth'
+        l_ckpt_json = os.path.join('src', 'dynamic_model', 'checkpoints', '20250626', 'm3_left.json')
+        l_ckpt_path = os.path.join('src', 'dynamic_model', 'checkpoints', '20250626', 'm3_left.pth')
 
-        r_ckpt_json = 'C:/Users/Administrator/Desktop/nationalBrainCode/src/dynamic_model/checkpoints/20250626/m3_right.json'
-        r_ckpt_path = 'C:/Users/Administrator/Desktop/nationalBrainCode/src/dynamic_model/checkpoints/20250626/m3_right.pth'
+        r_ckpt_json = os.path.join('src', 'dynamic_model', 'checkpoints', '20250626', 'm3_right.json')
+        r_ckpt_path = os.path.join('src', 'dynamic_model', 'checkpoints', '20250626', 'm3_right.pth')
 
         # 0626m2
 

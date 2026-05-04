@@ -14,7 +14,6 @@ import time
 from src.robot.encode_decode import EncodingDecoding
 
 from src.robot.task import TASK, MAP, SYSTEM_DEVICE
-from src.robot.dynamic_model_control import DynamicM_Control
 
 from src.system_device.recording_intan import RecordingIntan
 from src.system_device.stimulating_intan import Stimulating_Intan_Platform

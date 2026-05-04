@@ -33,7 +33,7 @@ class RecordingIntan(QObject):
         self.spike_detection_para = None  # spike检测参数
 
         # for data saving
-        self.save_path = os.getcwd() + "\\" + str(time.time()) + ".h5"            # 保存数据的路径
+        self.save_path = os.path.join(os.getcwd(), str(time.time()) + ".h5")  # 保存数据的路径，跨平台
         self.save_state = False    # 控制是否保存数据，默认不保存
 
         self.spike_det_left = SpikeDetection()
@@ -73,7 +73,7 @@ class RecordingIntan(QObject):
                 }
         
         base_path = os.path.dirname(self.save_path)
-        np.savez(base_path + "\channel_map_intan.npz", channel_map=[self.channel_map])
+        np.savez(os.path.join(base_path, "channel_map_intan.npz"), channel_map=[self.channel_map])
 
         self.recording_thread = ReadIntanDataThread(self.recording)
         self.recording_thread.start()

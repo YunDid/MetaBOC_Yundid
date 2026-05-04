@@ -1266,10 +1266,16 @@ class ImageWidget(QWidget, Ui_ImageWidget):
         self.human_arm_angle = angle
 
     def update_system(self, system):
+        from src.platform_config import MCS_AVAILABLE
         if system == SYSTEM_DEVICE.MEA2100:
+            if not MCS_AVAILABLE:
+                print("MCS not available on this platform; ignoring MEA2100 switch.")
+                return
             self.mea_ic.update_systems(SYSTEM_DEVICE.MEA2100)
         elif system == SYSTEM_DEVICE.INTAN:
             self.mea_ic.update_systems(SYSTEM_DEVICE.INTAN)
+        elif system == SYSTEM_DEVICE.MAXWELL:
+            self.mea_ic.update_systems(SYSTEM_DEVICE.MAXWELL)
 
     def set_intan_data_path(self, data_dir):
         self.mea_ic.set_intan_data_path(data_dir)

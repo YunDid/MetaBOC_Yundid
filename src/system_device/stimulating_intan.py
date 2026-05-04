@@ -8,7 +8,6 @@
 
 import time
 import os
-import clr
 import numpy as np
 
 from PyQt5.QtGui import *

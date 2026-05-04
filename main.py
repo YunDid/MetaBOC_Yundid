@@ -74,7 +74,10 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
         super(MainWindowClass, self).__init__(parent)
         self.setupUi(self)
         self.setWindowTitle(__appname__)
-        self.showFullScreen()
+        # Linux 下 showFullScreen 会隐藏标题栏，影响 GUI 操作；只在 Windows 启用全屏
+        from src.platform_config import IS_WINDOWS
+        if IS_WINDOWS:
+            self.showFullScreen()
         # test
         # self.setWindowIcon(QIcon(":/icons/resources/fineLabel.png"))
         self.setWindowState(Qt.WindowMaximized)
