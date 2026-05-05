@@ -137,7 +137,15 @@ def validate_record_electrodes(array, expected_electrodes):
             missing.append(electrode)
         else:
             routed.append(electrode)
-            amplifiers[electrode] = int(amp) if not hasattr(amp, "__len__") else int(amp[0])
+            # query_amplifier_at_electrode 实测返回字符串（如 '404' / '147'），
+            # 不是 list/tuple。原 hasattr(__len__) ? int(amp[0]) 分支对字符串会切到
+            # 首字符（'404'[0]='4' → int=4），在 amp_chan ≥ 10 时悄无声息错位。
+            # 与 recording_maxwell.connect 中 query_stimulation_at_electrode 的同模式
+            # BUG 一并修复（commit db4501b 已修 stim_unit 一侧）。
+            if isinstance(amp, (list, tuple)):
+                amplifiers[electrode] = int(amp[0])
+            else:
+                amplifiers[electrode] = int(amp)
 
     report = {"routed": routed, "missing": missing, "amplifiers": amplifiers}
 
