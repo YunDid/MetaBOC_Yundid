@@ -128,15 +128,19 @@ def main():
         target_electrode = stm.left_electrode
         idle_electrode = stm.right_electrode
 
-        # 把 right wheel 的 unit 关掉，让本次发放只驱动 left wheel
-        # （attach_stim_pool 后两个 unit 都是 connect=True；deactivate right
-        #  让 DAC0 序列只送到 left unit）
+        # refactor fb05f86 之后启动时所有 unit 都是 connect=False。
+        # 必须显式 activate(target) 让 left wheel 输出接通，否则 DAC0 序列
+        # 发出去但没有任何 unit 接通 → 电极上无刺激发放 → 录到 0 个事件。
+        # right wheel 已 connect=False，deactivate 调用是 no-op 兜底（如果
+        # 将来 refactor 又把启动改回 connect=True，这行还能正常工作）。
         sys_obj.stim_pool.deactivate([idle_electrode])
-        print("[setup] deactivated right wheel electrode={} (unit={}); "
-              "left target electrode={} (unit={})".format(
-                  idle_electrode, stm.right_unit_id,
-                  target_electrode, target_unit,
-              ))
+        sys_obj.stim_pool.activate([target_electrode])
+        print("[setup] left wheel electrode={} (unit={}) connect=True (target)".format(
+            target_electrode, target_unit
+        ))
+        print("[setup] right wheel electrode={} (unit={}) connect=False (idle)".format(
+            idle_electrode, stm.right_unit_id
+        ))
 
         dac_lsb = float(mx.query_DAC_lsb_mV())
         amp_dac = int(args.amplitude_mv / dac_lsb)
