@@ -4,7 +4,13 @@ Maxwell 刺激单元池子化管理。
 核心约束：闭环启动前所有 stim 电极的 routing + connect_electrode_to_stimulation
 + query unit 都由 RecordingMaxwell.connect 在 download **之前**完成，缓存
 electrode → stim_unit 映射。本类在 download **之后** 只做 StimulationUnit
-配置上电（power_up + connect + voltage_mode + dac_source）。
+配置上电（power_up(True) + connect(False) + voltage_mode + dac_source）。
+
+启动时 connect=False（不接通输出）的设计：
+  闭环 stim 范式启动后，左右 unit 输出默认关闭，避免「全部 connect=True
+  → 立即 _set_active_only(set()) 全部 connect=False」的冗余 HW 切换。运行时
+  由 stim_pool.activate(electrodes) 按需 connect=True，发完不切回，下次
+  发时 _set_active_only 自行做差集决定切换哪几路。
 
 运行时切换激活子集走 StimulationUnit.connect(True/False) 通道
 （mx.send(StimulationUnit(unit).connect(...))），禁止再次调用
@@ -70,6 +76,11 @@ class StimPool:
         也不调 query_stimulation_at_electrode**，这两步已在 RecordingMaxwell.connect
         的 download 之前完成。
 
+        每个 unit 的链式配置：
+            power_up(True) + connect(False) + set_voltage_mode + dac_source(0)
+        即「上电但输出未接通」初态。运行时由 stim_pool.activate 按需
+        connect(True)，避免启动期冗余 connect HW 切换。
+
         必须在 RecordingMaxwell.connect 完成之后（即 download / wait /
         offset 全部就位）调用。
 
@@ -106,12 +117,13 @@ class StimPool:
             self._electrode_to_unit[electrode] = unit_id
 
             print("[STIM_POOL] power_up unit={} electrode={} "
-                  "(power_up(True) + connect(True) + voltage_mode + dac_source(0))".format(
+                  "(power_up(True) + connect(False) + voltage_mode + dac_source(0)) "
+                  "— output stays disconnected until first runtime activate".format(
                       unit_id, electrode
                   ))
             cmd = (mx.StimulationUnit(unit_id)
                    .power_up(True)
-                   .connect(True)
+                   .connect(False)
                    .set_voltage_mode()
                    .dac_source(0))
             check_send_ok(
@@ -119,12 +131,14 @@ class StimPool:
                 "stim unit {} power_up (electrode {})".format(unit_id, electrode),
             )
 
-        # route_and_power_up 阶段所有 candidate unit 都 connect(True)，
-        # 视为初始全部激活；后续 deactivate(...) 才把它们逐个关掉。
-        self._active_electrodes = set(self._candidates)
+        # route_and_power_up 阶段所有 candidate unit 都是 power_up=True / connect=False，
+        # 输出未接通；运行时由 stim_pool.activate(electrodes) 按需 connect=True。
+        # 这样省去启动期「全 connect=True → initial_device 全 connect=False」的
+        # 冗余 4 次 HW 切换（启动期的切换不影响 ADC 录制波形，但仍是无谓硬件操作）。
+        self._active_electrodes = set()
         self._array = array
         print("[STIM_POOL] route_and_power_up done; init active set = {} "
-              "(all candidates connect=True after power_up)".format(
+              "(all candidates powered up but connect=False; outputs idle)".format(
                   sorted(self._active_electrodes)
               ))
 

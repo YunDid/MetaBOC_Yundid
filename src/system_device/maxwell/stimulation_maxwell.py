@@ -162,14 +162,20 @@ class StimulationMaxwell(object):
 
     def initial_device(self):
         """
-        标记设备就绪 + 默认把两个 unit 都断开（connect=False），让左右刺激不串扰。
-        如果未绑定左右轮 unit，退化为 recording-only 模式（update_* 直接 return）。
+        标记设备就绪。
+
+        启动后 stim_pool 已经把两个 unit 配置为 power_up(True)+connect(False)
+        （由 route_and_power_up 完成），active set = set()，输出默认全关闭。
+        本方法的 _set_active_only(set()) 是防御性兜底——决策日志会显示
+        "no change — skipping all connect toggles"，不发任何 HW 切换。
+
+        若未绑定左右轮 unit，退化为 recording-only 模式（update_* 直接 return）。
         """
         if self.left_unit_id is None or self.right_unit_id is None:
             print("Maxwell stim: no left/right unit bound; running recording-only mode.")
             self._connected = False
             return
-        self._set_active_only(active_unit_ids=set())
+        self._set_active_only(active_unit_ids=set())  # no-op 兜底（active 已为空）
         self._connected = True
         print("Maxwell stimulation device initialized (left/right wheel ready).")
 
