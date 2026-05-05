@@ -33,8 +33,8 @@ class RecordingMaxwell(object):
         self._device_available = None  # 缓存设备探测结果，None 表示尚未探测
         self._array = None
         self._wells = None
-        # download 前 connect_electrode_to_stimulation 完成后缓存的 electrode -> stim unit
-        # 由 stim_pool 在 download 后做 StimulationUnit 上电时直接使用。
+        # download 之后 query_stimulation_at_electrode 拿到的 electrode -> stim unit
+        # 权威映射。由 stim_pool 在 download 后做 StimulationUnit 上电时直接使用。
         self._stim_electrode_to_unit = {}
 
     def set_cfg_path(self, cfg_path):
@@ -89,8 +89,7 @@ class RecordingMaxwell(object):
         """
         执行 Maxwell 标准启动序列 + cfg 解析 + routing + stim 单元映射 + 校验。
 
-        启动顺序（与 Maxwell 官方 closed_loop tutorial 与 Exp_code 实测路径
-        对齐，必须严格遵守）：
+        启动顺序（与 Maxwell 官方 closed_loop tutorial 与实测路径对齐）：
           1. initialize_chip(wells)            # mx.initialize + enable_stimulation_power
                                                # + waitInit + activate(wells)
           2. 从 cfg 解析 record_electrodes      # 若未显式注入
@@ -100,20 +99,25 @@ class RecordingMaxwell(object):
           4. array.select_electrodes(record_electrodes)
           5. 如有 stim_electrodes：array.select_stimulation_electrodes(stim_electrodes)
           6. array.route()
-          7. **for each stim_el in stim_electrodes (download 之前)：**
-                a. _has_routed_amplifier(stim_el) 校验
+          7. **for each stim_el in stim_electrodes (download 之前，路由声明)：**
+                a. query_amplifier_at_electrode(stim_el) 校验已 routed
                 b. array.connect_electrode_to_stimulation(stim_el)
-                c. units = array.query_stimulation_at_electrode(stim_el)
-                d. 缓存 self._stim_electrode_to_unit[stim_el] = unit
-                e. 重复分配检查
           8. array.download(wells)
           9. wait_after_download + offset_calibration
-          10. validate_record_electrodes 严格覆盖校验
+          10. **for each stim_el in stim_electrodes (download 之后，硬件权威源)：**
+                a. units = array.query_stimulation_at_electrode(stim_el)
+                b. 缓存 self._stim_electrode_to_unit[stim_el] = unit
+                c. 重复分配检查
+          11. validate_record_electrodes 严格覆盖校验
 
-        关键边界：connect_electrode_to_stimulation 与 query_stimulation_at_electrode
-        必须在 download 之前调用 — 这是建立 stim 路由的步骤；download 之后再调
-        会得到空 unit / Error 返回。stim_pool.route_and_power_up 在 download
-        之后只做 StimulationUnit 上电，使用本方法缓存的 _stim_electrode_to_unit。
+        关键边界：query_stimulation_at_electrode 必须在 download **之后**调用。
+        array.download() 会重新优化 routing，download 前 query 拿到的 unit_id 与
+        download 后硬件实际生效的可能不同（1019 record + 2 stim 配置下实测
+        right electrode unit 由 2 → 26 重新分配，commit aa1c870 的
+        maxwell_connect_probe 在 P0 baseline 暴露此现象）。
+        connect_electrode_to_stimulation 仍在 download 之前调（建立路由声明）。
+        stim_pool.route_and_power_up 在 download 之后只做 StimulationUnit
+        上电，使用本方法 download 后缓存的 _stim_electrode_to_unit（权威源）。
         """
         from . import session_lifecycle, cfg_loader
 
@@ -154,11 +158,14 @@ class RecordingMaxwell(object):
         print("[RECORDING] step: array.route()")
         array.route()
 
-        # download 前：建立 stim 电极 → stim unit 映射
+        # download 前：路由声明（amplifier 校验 + connect_electrode_to_stimulation）
+        # query_stimulation_at_electrode 不在此处调 — array.download() 会重新优化 routing,
+        # download 前 query 拿到的 unit_id 与 download 后实际生效的不一致（1019 record + 2 stim
+        # 实测：right electrode 18884 由 unit 2 → unit 26 重新分配）。
         self._stim_electrode_to_unit = {}
         if self.stim_electrodes:
-            print("[RECORDING] step: build stim electrode -> unit mapping (BEFORE download)")
-            assigned_units = set()
+            print("[RECORDING] step: stim route declaration (BEFORE download): "
+                  "amplifier check + connect_electrode_to_stimulation")
             for stim_el in self.stim_electrodes:
                 print("[RECORDING]   query_amplifier_at_electrode({})".format(stim_el))
                 amp = array.query_amplifier_at_electrode(stim_el)
@@ -171,10 +178,24 @@ class RecordingMaxwell(object):
                 print("[RECORDING]   connect_electrode_to_stimulation({}) <-- HW route".format(stim_el))
                 array.connect_electrode_to_stimulation(stim_el)
 
+        print("[RECORDING] step: array.download(wells={}) <-- HW download (commits route to chip)".format(wells))
+        array.download(wells)
+        print("[RECORDING] step: wait_after_download (mx.Timing.waitAfterDownload)")
+        session_lifecycle.wait_after_download()
+        print("[RECORDING] step: offset_calibration (mx.offset + waitInMX2Offset + clear_events)")
+        session_lifecycle.offset_calibration()
+
+        # download 后：以硬件实际生效的 routing 为权威源建立 stim 电极 → unit 映射
+        if self.stim_electrodes:
+            print("[RECORDING] step: build stim electrode -> unit mapping "
+                  "(AFTER download, ground truth)")
+            assigned_units = set()
+            for stim_el in self.stim_electrodes:
                 stim_units = array.query_stimulation_at_electrode(stim_el)
                 if stim_units is None or (hasattr(stim_units, "__len__") and len(stim_units) == 0):
                     raise MxwserverError(
-                        "No stim unit available for electrode {} after connect_electrode_to_stimulation.".format(stim_el)
+                        "No stim unit assigned to electrode {} after download. "
+                        "Was connect_electrode_to_stimulation called before download?".format(stim_el)
                     )
 
                 unit_id = int(stim_units) if not hasattr(stim_units, "__len__") else int(stim_units[0])
@@ -187,17 +208,10 @@ class RecordingMaxwell(object):
                     )
                 assigned_units.add(unit_id)
                 self._stim_electrode_to_unit[stim_el] = unit_id
-                print("[RECORDING]   mapped electrode={} -> unit={}".format(stim_el, unit_id))
-            print("[RECORDING] stim mapping complete: {}".format(
+                print("[RECORDING]   mapped electrode={} -> unit={} (post-download)".format(stim_el, unit_id))
+            print("[RECORDING] stim mapping complete (post-download): {}".format(
                 self._stim_electrode_to_unit
             ))
-
-        print("[RECORDING] step: array.download(wells={}) <-- HW download (commits route to chip)".format(wells))
-        array.download(wells)
-        print("[RECORDING] step: wait_after_download (mx.Timing.waitAfterDownload)")
-        session_lifecycle.wait_after_download()
-        print("[RECORDING] step: offset_calibration (mx.offset + waitInMX2Offset + clear_events)")
-        session_lifecycle.offset_calibration()
 
         report = cfg_loader.validate_record_electrodes(array, self.record_electrodes)
         print("[RECORDING] electrode coverage: {}/{} record electrodes routed.".format(
