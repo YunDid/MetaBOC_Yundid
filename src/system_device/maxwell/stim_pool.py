@@ -105,6 +105,10 @@ class StimPool:
             unit_id = int(electrode_to_unit[electrode])
             self._electrode_to_unit[electrode] = unit_id
 
+            print("[STIM_POOL] power_up unit={} electrode={} "
+                  "(power_up(True) + connect(True) + voltage_mode + dac_source(0))".format(
+                      unit_id, electrode
+                  ))
             cmd = (mx.StimulationUnit(unit_id)
                    .power_up(True)
                    .connect(True)
@@ -119,6 +123,10 @@ class StimPool:
         # 视为初始全部激活；后续 deactivate(...) 才把它们逐个关掉。
         self._active_electrodes = set(self._candidates)
         self._array = array
+        print("[STIM_POOL] route_and_power_up done; init active set = {} "
+              "(all candidates connect=True after power_up)".format(
+                  sorted(self._active_electrodes)
+              ))
 
     def get_unit(self, electrode_id):
         """返回某个候选电极对应的 stim unit ID。"""
@@ -148,8 +156,14 @@ class StimPool:
                     "Cannot activate electrode {}: not in candidate pool.".format(electrode)
                 )
             if electrode in self._active_electrodes:
+                print("[STIM_POOL] activate skipped (already active) unit={} electrode={}".format(
+                    self._electrode_to_unit[electrode], electrode
+                ))
                 continue
             unit_id = self._electrode_to_unit[electrode]
+            print("[STIM_POOL] connect(True) unit={} electrode={} <-- HW toggle".format(
+                unit_id, electrode
+            ))
             check_send_ok(
                 mx.send(mx.StimulationUnit(unit_id).connect(True)),
                 "stim unit {} connect(True) (electrode {})".format(unit_id, electrode),
@@ -169,8 +183,14 @@ class StimPool:
 
         for electrode in electrode_ids:
             if electrode not in self._active_electrodes:
+                print("[STIM_POOL] deactivate skipped (already inactive) electrode={}".format(
+                    electrode
+                ))
                 continue
             unit_id = self._electrode_to_unit[electrode]
+            print("[STIM_POOL] connect(False) unit={} electrode={} <-- HW toggle".format(
+                unit_id, electrode
+            ))
             check_send_ok(
                 mx.send(mx.StimulationUnit(unit_id).connect(False)),
                 "stim unit {} connect(False) (electrode {})".format(unit_id, electrode),
@@ -185,12 +205,17 @@ class StimPool:
         """退出时下电所有 stim 单元。容错型，单步失败不影响后续清理。"""
         import maxlab as mx
 
+        print("[STIM_POOL] cleanup: powering down {} units".format(
+            len(self._electrode_to_unit)
+        ))
         for electrode, unit_id in list(self._electrode_to_unit.items()):
             try:
+                print("[STIM_POOL] cleanup: power_up(False) + connect(False) "
+                      "unit={} electrode={}".format(unit_id, electrode))
                 cmd = mx.StimulationUnit(unit_id).power_up(False).connect(False)
                 mx.send(cmd)
             except Exception as exc:
-                print("StimPool cleanup: unit {} (electrode {}) power_down failed: {!r}".format(
+                print("[STIM_POOL] cleanup: unit {} (electrode {}) power_down failed: {!r}".format(
                     unit_id, electrode, exc
                 ))
 

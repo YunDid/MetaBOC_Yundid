@@ -82,16 +82,21 @@ def initialize_chip(wells=None):
     if wells is None:
         wells = list(DEFAULT_WELLS)
 
+    print("[SESSION] initialize_chip: wells={}".format(wells))
+    print("[SESSION]   mx.initialize() <-- HW reset")
     mx.initialize()
 
+    print("[SESSION]   mx.send(Core.enable_stimulation_power(True))")
     result = mx.send(mx.Core().enable_stimulation_power(True))
     if (result or "").upper() != "OK":
         raise MxwserverError(
             "enable_stimulation_power failed: {!r}. The system did not initialize correctly.".format(result)
         )
 
+    print("[SESSION]   time.sleep(mx.Timing.waitInit={}s)".format(mx.Timing.waitInit))
     time.sleep(mx.Timing.waitInit)
 
+    print("[SESSION]   mx.activate(wells={})".format(wells))
     mx.activate(wells)
     return wells
 
@@ -110,6 +115,7 @@ def offset_calibration():
     """
     import maxlab as mx
 
+    print("[SESSION] offset_calibration: mx.offset() <-- HW calibration")
     try:
         mx.offset()
     except Exception as exc:
@@ -117,7 +123,9 @@ def offset_calibration():
             "mx.offset() failed: {!r}".format(exc)
         )
 
+    print("[SESSION]   time.sleep(mx.Timing.waitInMX2Offset={}s)".format(mx.Timing.waitInMX2Offset))
     time.sleep(mx.Timing.waitInMX2Offset)
+    print("[SESSION]   mx.clear_events() (one-shot post-offset; will be re-cleared once after stim_pool route_and_power_up)")
     mx.clear_events()
 
 
@@ -151,23 +159,32 @@ def cleanup_session(array=None, stim_pool=None, saving=None):
     """
     import maxlab as mx
 
+    print("[SESSION] cleanup_session: array={}, stim_pool={}, saving={}".format(
+        "yes" if array is not None else "no",
+        "yes" if stim_pool is not None else "no",
+        "yes" if saving is not None else "no",
+    ))
+
     if saving is not None:
         try:
+            print("[SESSION]   saving.stop_recording / stop_file / group_delete_all")
             saving.stop_recording()
             time.sleep(mx.Timing.waitAfterRecording)
             saving.stop_file()
             saving.group_delete_all()
         except Exception as exc:
-            print("Maxwell cleanup: saving teardown failed: {!r}".format(exc))
+            print("[SESSION] cleanup: saving teardown failed: {!r}".format(exc))
 
     if stim_pool is not None:
         try:
+            print("[SESSION]   stim_pool.cleanup() (delegates to StimPool.cleanup)")
             stim_pool.cleanup()
         except Exception as exc:
-            print("Maxwell cleanup: stim pool teardown failed: {!r}".format(exc))
+            print("[SESSION] cleanup: stim pool teardown failed: {!r}".format(exc))
 
     if array is not None:
         try:
+            print("[SESSION]   array.close() <-- HW")
             array.close()
         except Exception as exc:
-            print("Maxwell cleanup: array.close() failed: {!r}".format(exc))
+            print("[SESSION] cleanup: array.close() failed: {!r}".format(exc))

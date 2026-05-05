@@ -124,32 +124,43 @@ class RecordingMaxwell(object):
 
         import maxlab as mx
 
+        print("[RECORDING] connect() entered; cfg_path={}".format(self.cfg_path))
         wells = session_lifecycle.initialize_chip()
 
         if not self.record_electrodes:
+            print("[RECORDING] step: parse cfg → extract record electrodes")
             self.record_electrodes = cfg_loader.extract_electrodes(self.cfg_path)
-            print("Maxwell parsed {} record electrodes from cfg: {}".format(
-                len(self.record_electrodes), self.cfg_path
+            print("[RECORDING] parsed {} record electrodes from cfg".format(
+                len(self.record_electrodes)
             ))
 
+        print('[RECORDING] step: array = mx.Array("metaboc")')
         array = mx.Array("metaboc")
+        print("[RECORDING] step: array.reset()")
         array.reset()
+        print("[RECORDING] step: array.clear_selected_electrodes()")
         array.clear_selected_electrodes()
+        print("[RECORDING] step: array.select_electrodes({} record electrodes)".format(
+            len(self.record_electrodes)
+        ))
         array.select_electrodes(self.record_electrodes)
 
         if self.stim_electrodes:
-            array.select_stimulation_electrodes(self.stim_electrodes)
-            print("Maxwell selected {} stim electrodes for routing.".format(
-                len(self.stim_electrodes)
+            print("[RECORDING] step: array.select_stimulation_electrodes({}) electrodes={}".format(
+                len(self.stim_electrodes), self.stim_electrodes
             ))
+            array.select_stimulation_electrodes(self.stim_electrodes)
 
+        print("[RECORDING] step: array.route()")
         array.route()
 
         # download 前：建立 stim 电极 → stim unit 映射
         self._stim_electrode_to_unit = {}
         if self.stim_electrodes:
+            print("[RECORDING] step: build stim electrode -> unit mapping (BEFORE download)")
             assigned_units = set()
             for stim_el in self.stim_electrodes:
+                print("[RECORDING]   query_amplifier_at_electrode({})".format(stim_el))
                 amp = array.query_amplifier_at_electrode(stim_el)
                 if amp is None or (hasattr(amp, "__len__") and len(amp) == 0):
                     raise MxwserverError(
@@ -157,6 +168,7 @@ class RecordingMaxwell(object):
                         "Was it included in select_stimulation_electrodes / select_electrodes?".format(stim_el)
                     )
 
+                print("[RECORDING]   connect_electrode_to_stimulation({}) <-- HW route".format(stim_el))
                 array.connect_electrode_to_stimulation(stim_el)
 
                 stim_units = array.query_stimulation_at_electrode(stim_el)
@@ -175,23 +187,27 @@ class RecordingMaxwell(object):
                     )
                 assigned_units.add(unit_id)
                 self._stim_electrode_to_unit[stim_el] = unit_id
-            print("Maxwell stim mapping: {} electrodes → units {}".format(
-                len(self._stim_electrode_to_unit),
-                sorted(self._stim_electrode_to_unit.values()),
+                print("[RECORDING]   mapped electrode={} -> unit={}".format(stim_el, unit_id))
+            print("[RECORDING] stim mapping complete: {}".format(
+                self._stim_electrode_to_unit
             ))
 
+        print("[RECORDING] step: array.download(wells={}) <-- HW download (commits route to chip)".format(wells))
         array.download(wells)
+        print("[RECORDING] step: wait_after_download (mx.Timing.waitAfterDownload)")
         session_lifecycle.wait_after_download()
+        print("[RECORDING] step: offset_calibration (mx.offset + waitInMX2Offset + clear_events)")
         session_lifecycle.offset_calibration()
 
         report = cfg_loader.validate_record_electrodes(array, self.record_electrodes)
-        print("Maxwell electrode coverage: {}/{} record electrodes routed.".format(
+        print("[RECORDING] electrode coverage: {}/{} record electrodes routed.".format(
             len(report["routed"]), len(self.record_electrodes)
         ))
 
         self._array = array
         self._wells = wells
         self._connected = True
+        print("[RECORDING] connect() done; _connected=True")
 
     def set_record_para(self, sig):
         """与 MCS Recording 同名方法。注入记录电极配置对象。"""

@@ -98,13 +98,22 @@ class StimulationMaxwell(object):
     def attach_stim_pool(self, stim_pool):
         """
         由 MaxwellSystem 在 connect() 完成后注入已 route + power_up 的 StimPool。
-        attach 时一次性查 DAC LSB 缓存到本地，让 update_* 路径不再每次跨进程查询。
+
+        attach 时一次性：
+          1. 缓存 DAC LSB（避免后续每次 update_* 跨进程查询）
+          2. 清空 server 端 event buffer 一次（覆盖 route_and_power_up 阶段
+             残留事件；之后 update_* 不再 clear，让各次发放的 mx.Event 标记
+             保留下来供事后从 frame 元数据回看）
         """
         if not isinstance(stim_pool, StimPool):
             raise TypeError("attach_stim_pool requires a StimPool instance.")
         self.stim_pool = stim_pool
         self._dac_lsb_mv = stim_pulse.query_dac_lsb_mv()
-        print("Maxwell stim: DAC LSB cached = {:.4f} mV/bit".format(self._dac_lsb_mv))
+        print("[STIM] attach_stim_pool: DAC LSB cached = {:.4f} mV/bit".format(self._dac_lsb_mv))
+
+        import maxlab as mx
+        mx.clear_events()
+        print("[STIM] attach_stim_pool: mx.clear_events() — buffer cleared once after route_and_power_up")
 
     def set_role_units(self, left_electrode, right_electrode):
         """
@@ -267,6 +276,10 @@ class StimulationMaxwell(object):
         """
         把 stim_pool 的激活集合切换为指定 unit_id 集合。
         通过 stim_pool.activate / deactivate（StimulationUnit.connect 通道）实现。
+
+        差集优化：currently_active 与 target 已相同时，跳过所有 connect 切换；
+        每次 connect/disconnect 都会引发 ADC 短暂伪迹（用户实测确认），所以
+        日志逐项打印决策过程，便于从波形伪迹反向定位。
         """
         if self.stim_pool is None:
             raise RuntimeError("stim_pool not attached")
@@ -292,6 +305,16 @@ class StimulationMaxwell(object):
         to_deactivate = currently_active - target_electrodes
         to_activate = target_electrodes - currently_active
 
+        print("[STIM] _set_active_only: currently_active={} target={} "
+              "to_deactivate={} to_activate={}".format(
+                  sorted(currently_active), sorted(target_electrodes),
+                  sorted(to_deactivate), sorted(to_activate)
+              ))
+
+        if not to_deactivate and not to_activate:
+            print("[STIM] _set_active_only: no change — skipping all connect toggles")
+            return
+
         if to_deactivate:
             self.stim_pool.deactivate(list(to_deactivate))
         if to_activate:
@@ -302,11 +325,11 @@ class StimulationMaxwell(object):
         发放 sequence。Sequence.send() 返回 Sequence 自身（不是 'OK' 字符串），
         因此不做 check_send_ok 校验。
 
-        发送前 mx.clear_events() 清一次 event buffer，避免启动序列残留事件
-        污染本次 stim sequence 的 frame 元数据标记。
+        **不在此处 mx.clear_events**：clear_events 已在 attach_stim_pool
+        阶段做过一次（覆盖启动 + route_and_power_up 残留），之后保留各次
+        update_* 写入的 mx.Event 标记，让事后从 frame 元数据可完整回看刺激历史。
         """
-        import maxlab as mx
-        mx.clear_events()
+        print("[STIM] _send_sequence: seq.send() (sequence dispatch to MaxHub)")
         seq.send()
 
     def _send_pulse_train_freq(self, freq_hz, amplitude_uv, phase_us,
@@ -358,6 +381,10 @@ class StimulationMaxwell(object):
         """
         if not self._connected:
             return
+        decision = "left" if left >= right else "right"
+        print("[STIM] update_record_stimulation(left={}, right={}) -> {}".format(
+            left, right, decision
+        ))
 
         if left >= right:
             self._send_pulse_train_freq(
@@ -386,6 +413,7 @@ class StimulationMaxwell(object):
         """左侧惩罚刺激（碰撞触发）。波形来自 set_sti_signal 缓存。"""
         if not self._connected:
             return
+        print("[STIM] update_stimulation_left() — punish left")
         if not self.amplitude_uv:
             self._send_default_punish(
                 target_unit_id=self.left_unit_id,
@@ -405,6 +433,7 @@ class StimulationMaxwell(object):
         """右侧惩罚刺激（碰撞触发）。"""
         if not self._connected:
             return
+        print("[STIM] update_stimulation_right() — punish right")
         if not self.amplitude_uv:
             self._send_default_punish(
                 target_unit_id=self.right_unit_id,
@@ -426,6 +455,7 @@ class StimulationMaxwell(object):
         """左侧奖励刺激（与 MCS update_stimulation_stg1_reward 等价）。"""
         if not self._connected:
             return
+        print("[STIM] update_stimulation_left_reward() — reward left")
         self._send_segment_array(
             amp_array_uv=self.amp_reward_uv,
             dur_array_us=self.dur_reward_us,
@@ -438,6 +468,7 @@ class StimulationMaxwell(object):
         """右侧奖励刺激。"""
         if not self._connected:
             return
+        print("[STIM] update_stimulation_right_reward() — reward right")
         self._send_segment_array(
             amp_array_uv=self.amp_reward_uv,
             dur_array_us=self.dur_reward_us,
@@ -453,6 +484,7 @@ class StimulationMaxwell(object):
         """
         if not self._connected:
             return
+        print("[STIM] update_stimulation_left_right_reward() — reward both")
         self._send_segment_array(
             amp_array_uv=self.amp_reward_uv,
             dur_array_us=self.dur_reward_us,
@@ -470,6 +502,7 @@ class StimulationMaxwell(object):
         """
         if not self._connected:
             return
+        print("[STIM] update_record_stimulation_dynamic_model_left() — MPC left")
         amp = list(ampli[0])
         dur = list(duri[0])
         self._send_segment_array(
@@ -484,6 +517,7 @@ class StimulationMaxwell(object):
         """MPC 右路径。"""
         if not self._connected:
             return
+        print("[STIM] update_record_stimulation_dynamic_model_right() — MPC right")
         amp = list(ampli[0])
         dur = list(duri[0])
         self._send_segment_array(
