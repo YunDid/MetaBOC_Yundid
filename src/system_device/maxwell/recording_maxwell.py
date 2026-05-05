@@ -198,7 +198,15 @@ class RecordingMaxwell(object):
                         "Was connect_electrode_to_stimulation called before download?".format(stim_el)
                     )
 
-                unit_id = int(stim_units) if not hasattr(stim_units, "__len__") else int(stim_units[0])
+                # query_stimulation_at_electrode 实测返回字符串形式的 unit_id（如 '26'），
+                # 不是 list/tuple。早期代码用 hasattr(__len__) 分支取 [0]，对字符串会
+                # 切到首字符（'26'[0]='2' → int=2），在 unit_id ≥ 10 时悄无声息地解析错。
+                # stimulate.html line 541 官方写法直接 int(stim)。这里只对 list/tuple
+                # 显式判断，其他类型一律 int(...)，不走切片。
+                if isinstance(stim_units, (list, tuple)):
+                    unit_id = int(stim_units[0])
+                else:
+                    unit_id = int(stim_units)
                 if unit_id in assigned_units:
                     raise MxwserverError(
                         "Stim unit {} already assigned to a previous stim electrode. "
