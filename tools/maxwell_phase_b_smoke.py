@@ -7,11 +7,12 @@ Maxwell Phase B 接入烟雾测试 (smoke test)。
   - cfg 解析 → 显式 select_electrodes / select_stimulation_electrodes
   - 8 步初始化 + route + download + offset 校正
   - stim_pool 查 unit + 上电
+  - left_wheel / right_wheel 角色绑定（stim_electrodes[0] / [1]）
   - get_recording 占位返回
-  - stimulation 各 update_* 接口 print 路径
+  - stimulation 各 update_* 接口签名暴露完整
   - close 容错清理
 
-每一步打印状态，挂在哪一步一眼可见。
+**不发真实刺激**。真实刺激发放由 tools/maxwell_stim_smoke.py 单独验证。
 
 使用
 ----
@@ -20,7 +21,7 @@ Linux 真机（mxwserver 运行中）：
     python tools/maxwell_phase_b_smoke.py /path/to/your.cfg
 
   - 默认 stim_electrodes = []，仅验证 recording 路径
-  - 加 --stim "3580,4887" 验证 stim 完整链路
+  - 加 --stim "3580,4887" 验证 stim 完整链路 + left/right wheel 绑定
   - 加 --tier B 经过 Communication 包装层
 """
 
@@ -69,13 +70,37 @@ def smoke_tier_a(cfg_path, stim_electrodes, role_mapping):
             left, right
         ))
 
-        sys_obj.stimulating.update_record_stimulation(left=10, right=20)
-        sys_obj.stimulating.update_stimulation_left()
-        sys_obj.stimulating.update_stimulation_right()
-        sys_obj.stimulating.update_stimulation_left_right_reward()
-        sys_obj.stimulating.update_record_stimulation_dynamic_model_left(ampli=[100], duri=[200])
-        sys_obj.stimulating.update_record_stimulation_dynamic_model_right(ampli=[100], duri=[200])
-        print("[A4] stimulation API surface OK (printed messages).")
+        # 仅验证 stimulation 接口暴露完整（不真发刺激；真发由 maxwell_stim_smoke.py 验证）
+        expected_methods = [
+            "update_record_stimulation",
+            "update_stimulation_left",
+            "update_stimulation_right",
+            "update_stimulation_left_reward",
+            "update_stimulation_right_reward",
+            "update_stimulation_left_right_reward",
+            "update_record_stimulation_dynamic_model_left",
+            "update_record_stimulation_dynamic_model_right",
+        ]
+        missing = [m for m in expected_methods
+                   if not callable(getattr(sys_obj.stimulating, m, None))]
+        if missing:
+            raise RuntimeError("stimulation missing methods: {}".format(missing))
+        print("[A4] stimulation API surface OK ({} update_* methods exposed; no live stim).".format(
+            len(expected_methods)
+        ))
+
+        if stim_electrodes and len(stim_electrodes) >= 2:
+            stm = sys_obj.stimulating
+            assert stm.left_electrode == stim_electrodes[0], \
+                "left_wheel binding mismatch: expected {}, got {}".format(
+                    stim_electrodes[0], stm.left_electrode)
+            assert stm.right_electrode == stim_electrodes[1], \
+                "right_wheel binding mismatch: expected {}, got {}".format(
+                    stim_electrodes[1], stm.right_electrode)
+            print("[A4b] left/right wheel binding verified: "
+                  "left={} (unit {}), right={} (unit {})".format(
+                      stm.left_electrode, stm.left_unit_id,
+                      stm.right_electrode, stm.right_unit_id))
 
     finally:
         try:
@@ -124,8 +149,11 @@ def smoke_tier_b(cfg_path, stim_electrodes, role_mapping):
         left, right = comm.recording.get_recording()
         print("[B5] get_recording returned: left={} right={}".format(left, right))
 
-        comm.stimulation.update_record_stimulation(left=10, right=20)
-        print("[B6] stimulation update_record_stimulation OK.")
+        # 仅验证 Communication 与 Maxwell stimulation 角色对象绑定成功
+        # （不真发刺激；真发由 maxwell_stim_smoke.py 验证）
+        if not callable(getattr(comm.stimulation, "update_record_stimulation", None)):
+            raise RuntimeError("Communication.stimulation missing update_record_stimulation")
+        print("[B6] stimulation interface bound on Communication (no live stim send).")
 
     finally:
         try:
