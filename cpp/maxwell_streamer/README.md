@@ -10,7 +10,10 @@ MaxOne 的实时 spike 流官方**只能从 C++ 拿**（Python FAQ 明文 "close
 
 ## 运行环境（仅 Linux 工作站）
 
-- gcc/g++ ≥ 11，`-std=gnu++20`（实测 Ubuntu 22.04 / gcc 11.4 / GLIBC 2.35 OK）
+- **gcc/g++ ≥ 13**，`-std=gnu++20`。实测：libmaxlab-1.1.0_63ce7915b 内部 ZeroMQ 由 GCC13 编译，
+  引用 `GLIBCXX_3.4.31` 的 `_M_replace_cold`；g++-11/12（最高 3.4.30）链接报 undefined reference。
+  Ubuntu 22.04 装 g++-13：`sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt install g++-13`。
+  Makefile 自动优选 g++-14/13，并用 `-static-libstdc++` 把 libstdc++ 静态打进 binary（运行时不依赖系统库版本）。
 - libmaxlab（随 MaxLab SDK 发）：`~/MaxLab/share/maxlab_lib/`
   - 头文件 `maxlab/include/maxlab/*.h`，静态库 `maxlab/lib/libmaxlab.a`
   - 如未解压：`unzip ~/MaxLab/share/libmaxlab-*.zip -d ~/MaxLab/share/`

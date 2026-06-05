@@ -15,16 +15,19 @@ MAXLAB_LIB ?= $(HOME)/MaxLab/share/maxlab_lib
 INCLUDE    := $(MAXLAB_LIB)/maxlab/include
 LIBDIR     := $(MAXLAB_LIB)/maxlab/lib
 
-# libmaxlab.a 内部捆绑 ZeroMQ，由 GCC>=12 编译（引用 GLIBCXX_3.4.30 的 _M_replace_cold）；
-# g++ 11.x 的 libstdc++ 缺该符号会链接失败。这里自动优选 g++-13 > g++-12 > g++。
-# 用 := 而非 ?= 以忽略 conda 可能注入的 CXX 环境变量；命令行 `make CXX=...` 仍可覆盖。
-CXX   := $(shell command -v g++-13 2>/dev/null || command -v g++-12 2>/dev/null || echo g++)
+# libmaxlab.a 内部捆绑 ZeroMQ，由 GCC>=13 编译（引用 GLIBCXX_3.4.31 的 _M_replace_cold）。
+# 实测：g++-11/12 的 libstdc++ 最高只到 GLIBCXX_3.4.30，缺该符号 → 链接失败，必须 g++-13+。
+# 自动优选 g++-14 > g++-13 > g++-12 > g++；命令行 `make CXX=...` 仍可覆盖。
+# 用 := 忽略环境里可能残留的 CXX。
+CXX   := $(shell command -v g++-14 2>/dev/null || command -v g++-13 2>/dev/null || command -v g++-12 2>/dev/null || echo g++)
 GIT   := $(shell git rev-parse --short HEAD 2>/dev/null || echo nogit)
 BUILD := $(shell date '+%Y-%m-%dT%H:%M:%S%z')
 
 CXXFLAGS := -std=gnu++20 -O2 -Wall -Wextra -I$(INCLUDE) \
             -DMAXWELL_STREAMER_GIT=\"$(GIT)\" -DMAXWELL_STREAMER_BUILD=\"$(BUILD)\"
-LDFLAGS  := -L$(LIBDIR) -lmaxlab -lpthread
+# -static-libstdc++/-static-libgcc：把 libstdc++ 静态打进 binary，自带 GCC13 的 _M_replace_cold
+# 等符号，运行时不再依赖系统/venv 的 libstdc++ 版本（Python 经 venv 启动它也不会因版本崩）。
+LDFLAGS  := -L$(LIBDIR) -lmaxlab -lpthread -static-libstdc++ -static-libgcc
 
 TARGET := build/maxwell_streamer
 SRC    := src/main.cpp src/version.h
