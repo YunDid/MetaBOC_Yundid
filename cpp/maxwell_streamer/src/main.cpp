@@ -114,7 +114,8 @@ int main(int argc, char** argv) {
             continue;
         }
         if (st != maxlab::Status::MAXLAB_OK) {
-            std::fprintf(stderr, "# fatal: receiveNextFrame -> %s\n", maxlab::statusToText(st));
+            // 注：statusToText 在 errors.h 声明但未导出到 libmaxlab.a，故只打数字状态码。
+            std::fprintf(stderr, "# fatal: receiveNextFrame -> status %d\n", static_cast<int>(st));
             break;
         }
         noFrameStreak = 0;

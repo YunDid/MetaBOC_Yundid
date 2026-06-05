@@ -15,7 +15,10 @@ MAXLAB_LIB ?= $(HOME)/MaxLab/share/maxlab_lib
 INCLUDE    := $(MAXLAB_LIB)/maxlab/include
 LIBDIR     := $(MAXLAB_LIB)/maxlab/lib
 
-CXX   := g++
+# libmaxlab.a 内部捆绑 ZeroMQ，由 GCC>=12 编译（引用 GLIBCXX_3.4.30 的 _M_replace_cold）；
+# g++ 11.x 的 libstdc++ 缺该符号会链接失败。这里自动优选 g++-13 > g++-12 > g++。
+# 用 := 而非 ?= 以忽略 conda 可能注入的 CXX 环境变量；命令行 `make CXX=...` 仍可覆盖。
+CXX   := $(shell command -v g++-13 2>/dev/null || command -v g++-12 2>/dev/null || echo g++)
 GIT   := $(shell git rev-parse --short HEAD 2>/dev/null || echo nogit)
 BUILD := $(shell date '+%Y-%m-%dT%H:%M:%S%z')
 
