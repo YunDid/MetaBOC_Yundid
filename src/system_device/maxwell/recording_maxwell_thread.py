@@ -68,6 +68,7 @@ class ReadMaxwellDataThread(threading.Thread):
         self._banner = None        # 记下探头首行 banner，便于诊断
         self._started_ok = False   # 见到任意 stdout 行即认为子进程在跑
         self._fatal = None         # 探头 '# fatal:' 行（若出现）
+        self._total_spikes = 0     # 累计收到的 S（spike）行数 —— 监控探头是否真在出流
 
     # ------------------------------------------------------------------ 生命周期
     def start_streamer(self):
@@ -107,12 +108,13 @@ class ReadMaxwellDataThread(threading.Thread):
             if not line:
                 continue
             if line[0] == "#":
-                # banner / warning / fatal —— 不进数据通路，只留诊断
+                # banner / warning / fatal —— 不进数据通路，浮出到 stdout 供监控
                 if self._banner is None:
                     self._banner = line
                 self._started_ok = True
                 if "fatal" in line:
                     self._fatal = line
+                print("[PROBE] " + line)  # banner 一次 / NO_FRAME 警告(starved) / fatal 都可见
                 continue
             tok = line.split()
             tag = tok[0]
@@ -124,6 +126,7 @@ class ReadMaxwellDataThread(threading.Thread):
                         self._latest_frame = fn
                         self._spike_pool[ch].append(fn)
                         self._evict_locked()
+                    self._total_spikes += 1
                 elif tag == "H" and len(tok) >= 2:
                     fn = int(tok[1])
                     with self._lock:
@@ -207,6 +210,29 @@ class ReadMaxwellDataThread(threading.Thread):
             and self._started_ok
             and self._fatal is None
         )
+
+    def health(self):
+        """探头健康快照，供 get_recording 监控用。"""
+        alive = self._proc is not None and self._proc.poll() is None
+        with self._lock:
+            window_spikes = sum(len(dq) for dq in self._spike_pool.values())
+            active_channels = sum(1 for dq in self._spike_pool.values() if dq)
+        return {
+            "alive": alive,
+            "latest_frame": self._latest_frame,
+            "total_spikes": self._total_spikes,   # 累计收到的 spike（持续增 = C++ 真在出流）
+            "window_spikes": window_spikes,        # 当前 1s 窗口内 spike 总数
+            "active_channels": active_channels,    # 窗口内有 spike 的通道数
+            "banner": self._banner,
+            "fatal": self._fatal,
+        }
+
+    def top_channels(self, n=8):
+        """窗口内 spike 最多的前 n 个通道 [(channel, count), ...]，用于核对 channelmap。"""
+        with self._lock:
+            items = [(ch, len(dq)) for ch, dq in self._spike_pool.items() if dq]
+        items.sort(key=lambda x: x[1], reverse=True)
+        return items[:n]
 
     @property
     def latest_frame(self):

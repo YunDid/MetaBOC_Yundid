@@ -42,6 +42,7 @@ class RecordingMaxwell(object):
         self._recording_thread = None
         self._electrode_to_channel = {}
         self._lr_fallback_warned = False
+        self._getrec_calls = 0  # get_recording 调用计数（监控节流用）
 
     def set_cfg_path(self, cfg_path):
         """
@@ -281,11 +282,36 @@ class RecordingMaxwell(object):
                       "待 Maxwell 图1 GUI 适配注入左右记录电极后自动启用分组。")
                 self._lr_fallback_warned = True
             total = self._recording_thread.get_total_count(None)
+            self._monitor("merged-all", total, "merged-all", total)
             return [total], [total]
 
         left_total = self._recording_thread.get_total_count(left_ch)
         right_total = self._recording_thread.get_total_count(right_ch)
+        self._monitor(left_ch, left_total, right_ch, right_total)
         return [left_total], [right_total]
+
+    def _monitor(self, left_ch, left_total, right_ch, right_total):
+        """节流打印探头健康（约每秒一行），让闭环运行时能看到 C++ 接口数据是否真读到。
+
+        判读：
+          - alive=True 且 recv 持续增长 → C++ 探头确实在出流、Python 确实读到。
+          - alive=True 但 recv 长期不增 / win=0 → 探头连上了但没 spike（NO_FRAME 看
+            [PROBE] 警告：芯片无活动 / 阈值过高 / 未真正采集）。
+          - alive=False → 探头子进程已退出（看 fatal），get_recording 会一直返回 0。
+          - L/R 的 n 为 0 但 win>0 → spike 在别的通道上，多半是 channelmap 假定不成立
+            （真机必验③），用 top_channels 看实际活跃通道与你选的电极通道对不对得上。
+        """
+        self._getrec_calls += 1
+        if self._recording_thread is None or self._getrec_calls % 10 != 0:
+            return
+        h = self._recording_thread.health()
+        print("[MON] probe alive={} frame={} recv={} win={}(ch{}) | L {} n={} | R {} n={} | top={}".format(
+            h["alive"], h["latest_frame"], h["total_spikes"], h["window_spikes"],
+            h["active_channels"], left_ch, left_total, right_ch, right_total,
+            self._recording_thread.top_channels(6),
+        ))
+        if not h["alive"]:
+            print("[MON] !! 探头子进程已退出 fatal={} —— get_recording 将持续返回 0".format(h["fatal"]))
 
     # ------------------------------------------------------- Phase D 内部辅助
     def _streamer_binary_path(self):
