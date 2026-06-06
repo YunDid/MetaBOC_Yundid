@@ -127,9 +127,15 @@ def build_biphasic_pulse_train(
         # 配置的 [a1<0,0,a2>0,gap]）会把标记打到第二相（晚 ~一个相位），不对齐真实起点。
         if a_uv != 0 and not in_pulse:
             pulse_idx += 1
-            label = "{} pulse_{} amp_{}uV".format(
-                label_prefix, pulse_idx, a_uv
-            ).strip()
+            # mx.Event 的 properties 必须是「空格分隔的 key value 成对」(偶数个 token)。
+            # 原 label 对单词 prefix（punish_left / reward_left）会得到奇数 token
+            # （"punish_left pulse_1 amp_500000uV" = 3 个），服务器按 key-value 解析时整条
+            # Event 被丢弃 → punish/reward/MPC 标签全丢；env 的 prefix "env_left freq_22"
+            # 恰好凑成偶数 token 才得以保留。这里统一成 6-token(3 对) key-value，prefix 内空格
+            # 转 _，保证所有刺激类型都能写进记录。eventid(=user_id) 仍是权威类型标识。
+            label = "tag {} pulse {} amp_uV {}".format(
+                (str(label_prefix).replace(" ", "_") or "stim"), pulse_idx, a_uv
+            )
             seq.append(mx.Event(well_id, 1, user_id, label))
             in_pulse = True
 
