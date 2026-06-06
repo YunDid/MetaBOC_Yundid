@@ -412,8 +412,10 @@ class ImageWidget(QWidget, Ui_ImageWidget):
                 # 碰撞后小车暂停1秒等待障碍物移动, 但是休息会使得原始信号可视化卡顿，故暂时隐藏
                 time.sleep(1)
                 pass
-            else:
+            elif not self.mea_ic.mode_train:
+                # 测试模式：立即回退（不等待）
                 self.robot.back_to_hit_pos()    # 撞击后，小车回退至撞击前的某个位置
+            # 训练模式：回退延后到 update_distance 的 punish + 4s 等待之后再做（见下方 deferred 回退）
 
         # 判断是否出界
         state_left = self.obstacle.check_if_out_of_border(self.robot.wheel_lux, self.robot.wheel_luy)
@@ -426,6 +428,11 @@ class ImageWidget(QWidget, Ui_ImageWidget):
 
         if is_human == 1:
             self.mea_ic.update_distance(min_dis_left, left_hit, min_dis_right, right_hit, out_border, ang_dis_left, ang_dis_right, left_id_change, right_id_change)    # 更新小车实时检测的距离，转化为刺激输入至MEA
+
+        # 训练模式：碰撞后在 update_distance 内先发 punish 并 time.sleep(4)，等待结束后再回退
+        # （测试模式已在上面碰撞处立即回退；跟踪任务用自身 sleep(1) 逻辑，不在此回退）。
+        if (left_hit or right_hit) and self.task != TASK.Object_Tracking and self.mea_ic.mode_train:
+            self.robot.back_to_hit_pos()
 
         self.left_distance.emit(min_dis_left)
         self.right_distance.emit(min_dis_right)
