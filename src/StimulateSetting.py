@@ -601,7 +601,7 @@ class StimulateSettingDialog(QDialog, Ui_StimulateDialog):
                    
                     x_global = x_global + ISI*1000   # 单个方波间隔
 
-        self.spb_total_time.setValue(x_global/1000)
+        self.spb_total_time.setValue(int(x_global/1000))
     
     def sti_name_changed(self):
         self.lineEdit_sti_name.setStyleSheet("border: 1px solid grey;")

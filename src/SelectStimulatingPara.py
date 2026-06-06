@@ -217,7 +217,7 @@ class SelectStimulatingPara(QDialog, Ui_SelectStimulatingDialog):
                 # x_global = x_global + ISI*1000
 
             self.x_aix.setRange(0, x_global)
-            self.spb_total_time.setValue(x_global/1000)
+            self.spb_total_time.setValue(int(x_global/1000))
         elif self.sys_device == SYSTEM_DEVICE.INTAN:
             self.frame_signal.hide()
             self.spb_total_time.setValue(sti_para["total_time"])

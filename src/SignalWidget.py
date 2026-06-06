@@ -30,17 +30,17 @@ class SignalWidget(QWidget, Ui_SignalWidget):
         if self.para is None:
             self.frequency = 10
             self.ISI = 1000 / self.frequency
-            self.spb_frequency.setValue(self.frequency)
-            self.spb_ISI.setValue(self.ISI)
+            self.spb_frequency.setValue(int(self.frequency))
+            self.spb_ISI.setValue(int(self.ISI))
 
             self.uint_time = self.spb_cycles.value() * (self.spb_dura_1.value() + self.spb_dura_2.value() + self.spb_dura_3.value())  # ms
-            self.spb_unit_time.setValue(self.uint_time)
+            self.spb_unit_time.setValue(int(self.uint_time))
             self.spb_unit_time.setEnabled(False)
         else:
-            self.frequency = para["frequency"]; self.spb_frequency.setValue(para["frequency"])
-            self.ISI = para["ISI"]; self.spb_ISI.setValue(para["ISI"])
+            self.frequency = para["frequency"]; self.spb_frequency.setValue(int(para["frequency"]))
+            self.ISI = para["ISI"]; self.spb_ISI.setValue(int(para["ISI"]))
             self.uint_time = para["one_uint_time"]
-            self.spb_unit_time.setValue(self.uint_time)
+            self.spb_unit_time.setValue(int(self.uint_time))
             self.spb_unit_time.setEnabled(False)
 
             self.spb_cycles.setValue(para["cycles"])
@@ -190,16 +190,16 @@ class SignalWidget(QWidget, Ui_SignalWidget):
     def update_frequency(self, value):
         self.frequency = value
         self.ISI = 1000 / self.frequency
-        self.spb_ISI.setValue(self.ISI)
+        self.spb_ISI.setValue(int(self.ISI))
     
     def update_ISI(self, value):
         self.ISI = value
         self.frequency = 1000 / self.ISI
-        self.spb_frequency.setValue(self.frequency)
+        self.spb_frequency.setValue(int(self.frequency))
 
     def update_uint_time(self):
         self.uint_time = self.spb_cycles.value() * (self.spb_dura_1.value() + self.spb_dura_2.value() + self.spb_dura_3.value() + self.ISI * 1000)  # μs
-        self.spb_unit_time.setValue(self.uint_time / 1000)
+        self.spb_unit_time.setValue(int(self.uint_time / 1000))
 
     def pb_ok_clicked(self):
         if self.para is None:  # 表示新建参数

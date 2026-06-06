@@ -291,8 +291,8 @@ class RecordingMaxwell(object):
     def _streamer_binary_path(self):
         """框架外 C++ 探头编译产物路径（仓库根/cpp/maxwell_streamer/build/maxwell_streamer）。"""
         here = os.path.dirname(os.path.abspath(__file__))
-        # src/system_device/maxwell/recording_maxwell.py → 仓库根需上溯 4 层
-        repo_root = os.path.abspath(os.path.join(here, "..", "..", "..", ".."))
+        # 本文件目录 = <repo>/src/system_device/maxwell → 上溯 3 层到 <repo> 根
+        repo_root = os.path.abspath(os.path.join(here, "..", "..", ".."))
         return os.path.join(repo_root, "cpp", "maxwell_streamer", "build", "maxwell_streamer")
 
     def _start_recording_thread(self):
