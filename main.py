@@ -914,6 +914,19 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
             self.imageWidget.update_system(SYSTEM_DEVICE.MAXWELL)
             # 图2 切到 Maxwell 模式：从 ./out/MAXWELL 加载已保存的刺激参数（与 MEA2100/INTAN 对齐）
             self.stimulate_select_dialog.update_system(SYSTEM_DEVICE.MAXWELL)
+
+            # 刺激组有效性反馈：connect 成功 → recording 非 None；两刺激电极映射到同一
+            # stim_unit（冲突）或 cfg/探头失败 → recording 为 None（终端 [STIM-CHECK]/报错有详情）。
+            if self.imageWidget.mea_ic.recording is None:
+                QMessageBox.warning(
+                    self, "Maxwell 会话启动失败",
+                    "Maxwell 连接/路由失败 —— 可能两个刺激电极映射到同一 stim_unit（冲突），\n"
+                    "或 cfg / 探头问题。请看终端日志，重选刺激电极或检查 cfg。",
+                )
+                self.actionMEA_2100.setChecked(True)
+            else:
+                self.ShowMessageToStatusBar(
+                    "Maxwell 已连接，刺激组有效（左右轮 unit 不冲突，详见终端 [STIM-CHECK]）", False)
     
     def setGlobalFont(self):
         """设置全局字体样式：中文使用微软雅黑，英文使用Times New Roman"""

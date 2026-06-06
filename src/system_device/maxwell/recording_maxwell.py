@@ -227,6 +227,14 @@ class RecordingMaxwell(object):
             print("[RECORDING] stim mapping complete (post-download): {}".format(
                 self._stim_electrode_to_unit
             ))
+            # 能走到这里说明上面的「重复分配检查」已通过 = 两刺激电极映射到不同 stim_unit
+            # → 刺激组有效（可独立左右切换、不串扰）。stim_electrodes 按 [左轮, 右轮] 注入。
+            if len(self.stim_electrodes) >= 2:
+                lu = self._stim_electrode_to_unit.get(self.stim_electrodes[0])
+                ru = self._stim_electrode_to_unit.get(self.stim_electrodes[1])
+                print("[STIM-CHECK] 刺激组有效（无冲突）：左轮 electrode={}->unit={} / "
+                      "右轮 electrode={}->unit={}（两 unit 不同，可独立左右切换）".format(
+                          self.stim_electrodes[0], lu, self.stim_electrodes[1], ru))
 
         report = cfg_loader.validate_record_electrodes(array, self.record_electrodes)
         print("[RECORDING] electrode coverage: {}/{} record electrodes routed.".format(
