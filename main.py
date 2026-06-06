@@ -487,20 +487,14 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
 
     # ************************ for action **************************
     def add_stimulating(self):
-        if self.actionMaxwell.isChecked():
-            QMessageBox.information(
-                self,
-                "Maxwell stub stage",
-                "Maxwell 专属刺激配置对话框尚未实现（Phase C 计划）。\n"
-                "Phase B 阶段仅验证后端 connect/close 路径，跳过本功能。",
-            )
-            return
-
         if self.stimulate_setting_dialog is None:
             if self.actionMEA_2100.isChecked():
                 sys_ = SYSTEM_DEVICE.MEA2100
             elif self.actionINTAN_System.isChecked():
                 sys_ = SYSTEM_DEVICE.INTAN
+            elif self.actionMaxwell.isChecked():
+                # Maxwell：图1 复用 MCS 脉冲参数 UI（隐藏物理网格），编辑双相脉冲刺激参数
+                sys_ = SYSTEM_DEVICE.MAXWELL
 
             self.stimulate_setting_dialog = StimulateSettingDialog(self, sys_)
             self.stimulate_setting_dialog.close_dialog.connect(self.close_sti_setting_dialog)
@@ -916,6 +910,8 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
                 role_mapping=role_mapping,
             )
             self.imageWidget.update_system(SYSTEM_DEVICE.MAXWELL)
+            # 图2 切到 Maxwell 模式：从 ./out/MAXWELL 加载已保存的刺激参数（与 MEA2100/INTAN 对齐）
+            self.stimulate_select_dialog.update_system(SYSTEM_DEVICE.MAXWELL)
     
     def setGlobalFont(self):
         """设置全局字体样式：中文使用微软雅黑，英文使用Times New Roman"""

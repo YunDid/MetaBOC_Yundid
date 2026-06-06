@@ -213,6 +213,14 @@ class StimulateSettingDialog(QDialog, Ui_StimulateDialog):
             self.frame_intan_b.hide()
             self.frame_array.show()
             self.resize(488, 700)
+        elif dev == SYSTEM_DEVICE.MAXWELL:
+            # Maxwell HD-MEA：无 8x8 物理网格、无 Intan 双列。记录电极由 cfg routing 决定、
+            # 刺激电极在设备切换时已注入，图1 在 Maxwell 下只编辑「双相脉冲参数」（复用 MCS
+            # SignalWidget），不在此选电极 → 隐藏全部电极网格。
+            self.frame_intan.hide()
+            self.frame_intan_b.hide()
+            self.frame_array.hide()
+            self.resize(488, 600)
         else:
             self.frame_intan.show()
             self.frame_intan_b.show()
@@ -460,6 +468,9 @@ class StimulateSettingDialog(QDialog, Ui_StimulateDialog):
             out_name = os.path.join("./out/MEA2100", name + ".npz")
         elif self.sys_device == SYSTEM_DEVICE.INTAN:
             out_name = os.path.join("./out/INTAN", name + ".npz")
+        elif self.sys_device == SYSTEM_DEVICE.MAXWELL:
+            os.makedirs("./out/MAXWELL", exist_ok=True)  # 首次保存时目录可能不存在
+            out_name = os.path.join("./out/MAXWELL", name + ".npz")
 
         if os.path.exists(out_name):
             self.lineEdit_sti_name.setStyleSheet("border: 1px solid red;")
@@ -491,7 +502,8 @@ class StimulateSettingDialog(QDialog, Ui_StimulateDialog):
 
 
     def add_stimulating_signal(self):
-        if self.sys_device == SYSTEM_DEVICE.MEA2100:
+        # Maxwell 复用 MCS 双相脉冲参数 UI（stimulation_maxwell 按 MCS sti_para schema 移植）
+        if self.sys_device in (SYSTEM_DEVICE.MEA2100, SYSTEM_DEVICE.MAXWELL):
             self.signal_widget = SignalWidget()
             self.signal_widget.save_sti_para.connect(self.save_stimulating_para)
             self.signal_widget.close_widget.connect(self.close_signal_widget)

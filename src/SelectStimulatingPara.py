@@ -66,6 +66,9 @@ class SelectStimulatingPara(QDialog, Ui_SelectStimulatingDialog):
             path = "./out/MEA2100"
         elif self.sys_device == SYSTEM_DEVICE.INTAN:
             path = "./out/INTAN"
+        elif self.sys_device == SYSTEM_DEVICE.MAXWELL:
+            path = "./out/MAXWELL"
+            os.makedirs(path, exist_ok=True)  # 首次切到 Maxwell 时目录可能不存在
 
         files = os.listdir(path)
         for i in range(len(files)):
@@ -139,7 +142,8 @@ class SelectStimulatingPara(QDialog, Ui_SelectStimulatingDialog):
         self.show_signal(para, sti_para, recording_list, stimulating_list)
 
     def show_signal(self, para, sti_para, recording_list, stimulating_list):
-        if self.sys_device == SYSTEM_DEVICE.MEA2100:
+        # Maxwell 复用 MCS 双相脉冲参数 schema（amplitude/duration/cycles/ISI），波形图照画
+        if self.sys_device in (SYSTEM_DEVICE.MEA2100, SYSTEM_DEVICE.MAXWELL):
             self.frame_signal.show()
             if self.charView is None:
                 self.charView = QChartView(self.frame_signal)
@@ -254,6 +258,8 @@ class SelectStimulatingPara(QDialog, Ui_SelectStimulatingDialog):
                 full_path = os.path.join("./out/MEA2100", text + ".npz")
             elif self.sys_device == SYSTEM_DEVICE.INTAN:
                 full_path = os.path.join("./out/INTAN", text + ".npz")
+            elif self.sys_device == SYSTEM_DEVICE.MAXWELL:
+                full_path = os.path.join("./out/MAXWELL", text + ".npz")
             if os.path.exists(full_path):
                 os.remove(full_path)
 

@@ -1,9 +1,9 @@
 """
 Maxwell Recording 角色 stub。
 
-最小可跑实现：暴露与 MCS Recording / Intan RecordingIntan 等价的方法
-签名，让 Communication 可以无差异调用。所有真实硬件交互通过 lazy
-maxlab import + 占位返回值，等 C++ binary 工程完成后再补齐数据通路。
+暴露与 MCS Recording / Intan RecordingIntan 等价的方法签名，让 Communication
+可以无差异调用。真实硬件交互通过 lazy maxlab import 延迟到 connect()；记录侧
+spike 数据通路由框架外 C++ 探头 maxwell_streamer 经 stdout 喂入（Phase D）。
 
 接口对齐目标：
 - get_device_count() -> int                 设备发现
@@ -11,6 +11,8 @@ maxlab import + 占位返回值，等 C++ binary 工程完成后再补齐数据�
 - set_spike_detection_para(para)             spike 检测参数注入
 - get_recording() -> (left_spike, right_spike)  闭环主入口，返回每通道 spike 数列表
 """
+
+import os
 
 from .errors import MxwserverError
 
@@ -36,6 +38,10 @@ class RecordingMaxwell(object):
         # download 之后 query_stimulation_at_electrode 拿到的 electrode -> stim unit
         # 权威映射。由 stim_pool 在 download 后做 StimulationUnit 上电时直接使用。
         self._stim_electrode_to_unit = {}
+        # Phase D 记录侧：C++ 探头采集线程 + electrode→readout channel 惰性缓存
+        self._recording_thread = None
+        self._electrode_to_channel = {}
+        self._lr_fallback_warned = False
 
     def set_cfg_path(self, cfg_path):
         """
@@ -229,6 +235,16 @@ class RecordingMaxwell(object):
         self._array = array
         self._wells = wells
         self._connected = True
+
+        # Phase D：在 connect 尾部启动框架外 C++ 只读探头，把 server 侧检测的 spike
+        # 经 stdout 喂进来。
+        # 流的来源：mxwserver 启动 + 芯片在位即出流，与 Python 无关（2026-06-06 真机插片
+        # 实测：未跑任何 Python 设置、仅 server+芯片，探头即刷 S/H）。本处 route/download
+        # 不是“让流存在”的前提，而是把我们选的记录/刺激电极映射到 readout 通道——这样
+        # get_recording 的 electrode→channel 才对得上我们的配置。流也不依赖
+        # mx.Saving()/start_recording（不写盘照样有流）。
+        self._start_recording_thread()
+
         print("[RECORDING] connect() done; _connected=True")
 
     def set_record_para(self, sig):
@@ -241,24 +257,122 @@ class RecordingMaxwell(object):
 
     def get_recording(self):
         """
-        闭环主入口。返回 (left_spike, right_spike) 元组，每个元素是
-        per-channel spike 数列表（与 MCS / Intan 一致）。
+        闭环主入口。返回 (left_spike, right_spike)，每个元素是 per-channel spike 数
+        列表（与 MCS / Intan 契约一致，供下游 np.sum / np.array(...).mean(axis=0) /
+        save_spike_reference 的 cur[0] 使用，故必须是非空、长度稳定的序列）。
 
-        Phase B stub：返回空列表占位。Phase D 完成后这里从 C++ binary
-        喂过来的 spike 流中提取 per-electrode 计数。
+        Phase D：从后台 C++ 探头线程的滚动窗口取每通道计数。
+        - 默认“合并模式”：每侧返回长度 1 的 [该侧总计数]（对齐 MCS 主闭环最省事）。
+          逐电极模式（喂 AI 动力学模型）只需把下面 total 换成 per-channel 列表即可，
+          上层契约不变，留待要跑 AI 时再切。
+        - 左右分组来源：recording_para.recording_list[0]/[1]（方案 A，沿用 MCS/Intan
+          注入口）。recording_list 尚未注入时（Maxwell 图1 GUI 适配未完成），退化为
+          “两侧都返回窗口内全通道总计数”的安全占位，并一次性告警。
         """
-        if not self._connected:
-            return [], []
-        return [], []
+        if not self._connected or self._recording_thread is None:
+            return [0], [0]  # 非连接态：非空 length-1 占位，满足下游 cur[0]/mean 契约
+
+        left_ch, right_ch = self._resolve_left_right_channels()
+        if left_ch is None:
+            # recording_list 未注入 → 无法分左右，返回全通道总计数作占位
+            if not self._lr_fallback_warned:
+                print("[RECORDING] WARN: recording_para.recording_list 未注入，"
+                      "get_recording 暂返回全通道合并计数（左右相同占位）；"
+                      "待 Maxwell 图1 GUI 适配注入左右记录电极后自动启用分组。")
+                self._lr_fallback_warned = True
+            total = self._recording_thread.get_total_count(None)
+            return [total], [total]
+
+        left_total = self._recording_thread.get_total_count(left_ch)
+        right_total = self._recording_thread.get_total_count(right_ch)
+        return [left_total], [right_total]
+
+    # ------------------------------------------------------- Phase D 内部辅助
+    def _streamer_binary_path(self):
+        """框架外 C++ 探头编译产物路径（仓库根/cpp/maxwell_streamer/build/maxwell_streamer）。"""
+        here = os.path.dirname(os.path.abspath(__file__))
+        # src/system_device/maxwell/recording_maxwell.py → 仓库根需上溯 4 层
+        repo_root = os.path.abspath(os.path.join(here, "..", "..", "..", ".."))
+        return os.path.join(repo_root, "cpp", "maxwell_streamer", "build", "maxwell_streamer")
+
+    def _start_recording_thread(self):
+        """connect 尾部启动 C++ 探头采集线程。"""
+        from .recording_maxwell_thread import ReadMaxwellDataThread
+        binary = self._streamer_binary_path()
+        # MaxOne 固定 well 0；MaxTwo 多 well 时由 self._wells 推导（此处接 MaxOne）
+        well = 0
+        self._recording_thread = ReadMaxwellDataThread(binary_path=binary, well=well)
+        self._recording_thread.start_streamer()
+        print("[RECORDING] maxwell_streamer 探头线程已启动: {}".format(binary))
+
+    def _query_channel_for_electrode(self, electrode):
+        """electrode → 数据流 readout channel（即 S 行里的 <channel>）。
+
+        用 array.query_amplifier_at_electrode 取该电极路由到的 amplifier；防字符串
+        切片陷阱（'26'[0] → '2'），list/tuple 取 [0]，其余一律 int(...)。
+
+        ⚠ 真机必验③：本方法假定 query_amplifier_at_electrode 返回的 amplifier 编号
+        与 SpikeEvent.channel（DataStreamerFiltered 给的 0–1023 readout 通道）同一套
+        编号。这点文档未给死保证，必须在真机用“已知有放电的单电极”对一次再定论。
+        """
+        if self._array is None:
+            return None
+        try:
+            amp = self._array.query_amplifier_at_electrode(electrode)
+        except Exception as exc:
+            print("[RECORDING] query_amplifier_at_electrode({}) 失败: {!r}".format(electrode, exc))
+            return None
+        if amp is None:
+            return None
+        if isinstance(amp, (list, tuple)):
+            if len(amp) == 0:
+                return None
+            return int(amp[0])
+        try:
+            return int(amp)
+        except (ValueError, TypeError):
+            return None
+
+    def _ensure_electrode_channel_map(self, electrodes):
+        """惰性补建 electrode → channel 映射（只查未缓存过的电极）。"""
+        for e in electrodes:
+            if e in self._electrode_to_channel:
+                continue
+            ch = self._query_channel_for_electrode(e)
+            if ch is not None:
+                self._electrode_to_channel[e] = ch
+
+    def _resolve_left_right_channels(self):
+        """从 recording_para.recording_list 推出 (left_channels, right_channels)。
+
+        无法解析（recording_para/recording_list 未就绪）时返回 (None, None)。
+        """
+        para = self.recording_para
+        if para is None or not hasattr(para, "recording_list"):
+            return None, None
+        rl = para.recording_list
+        if not rl or len(rl) < 2:
+            return None, None
+        left_els = list(rl[0]) if rl[0] else []
+        right_els = list(rl[1]) if rl[1] else []
+        if not left_els and not right_els:
+            return None, None
+        self._ensure_electrode_channel_map(left_els + right_els)
+        left_ch = [self._electrode_to_channel[e] for e in left_els if e in self._electrode_to_channel]
+        right_ch = [self._electrode_to_channel[e] for e in right_els if e in self._electrode_to_channel]
+        return left_ch, right_ch
 
     def stop_recording(self):
-        """与 Intan recording 接口对齐。停止数据流。"""
-        pass
+        """与 Intan recording 接口对齐。停止 C++ 探头数据流。"""
+        if self._recording_thread is not None:
+            self._recording_thread.stop_streamer()
+            self._recording_thread = None
 
     def disconnect(self):
-        """断开 Maxwell 会话。容错型清理，保证硬件资源释放。"""
+        """断开 Maxwell 会话。先停探头子进程，再容错清理硬件资源。"""
         if not self._connected:
             return
+        self.stop_recording()  # 先停 C++ 探头，避免 server close 后探头仍在读
         from . import session_lifecycle
         session_lifecycle.cleanup_session(array=getattr(self, "_array", None))
         self._connected = False
