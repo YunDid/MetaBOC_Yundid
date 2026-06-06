@@ -54,7 +54,7 @@ class ReadMaxwellDataThread(threading.Thread):
         self.filter_type = filter_type
 
         self._proc = None
-        self._stop = threading.Event()
+        self._stop_event = threading.Event()  # 不能叫 _stop：会遮蔽 Thread._stop() 内部方法
         self._lock = threading.Lock()
 
         # per-channel 最近 spike 的 frameNo 队列；evict 后只保留窗口内的
@@ -101,7 +101,7 @@ class ReadMaxwellDataThread(threading.Thread):
         if self._proc is None or self._proc.stdout is None:
             return
         for line in self._proc.stdout:
-            if self._stop.is_set():
+            if self._stop_event.is_set():
                 break
             line = line.strip()
             if not line:
@@ -146,7 +146,7 @@ class ReadMaxwellDataThread(threading.Thread):
 
     def stop_streamer(self):
         """优雅停：SIGTERM 子进程（探头收到后 DataStreamerFiltered_close）+ join 线程。"""
-        self._stop.set()
+        self._stop_event.set()
         if self._proc is not None:
             try:
                 self._proc.terminate()  # → 探头 SIGTERM → 优雅 close()

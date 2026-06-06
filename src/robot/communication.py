@@ -100,6 +100,9 @@ class Communication(object):
         formatted_date = dt_object.strftime("%Y-%m-%d %H-%M-%S")
         self.save_spike_ref_path_left = os.path.join("./out_spike_ref", "left-" + formatted_date[:-9] + "-" + formatted_date[-8:] + ".txt")
         self.save_spike_ref_path_right = os.path.join("./out_spike_ref", "right-" + formatted_date[:-9] + "-" + formatted_date[-8:] + ".txt")
+        # 输出目录首跑可能不存在（save_spike_reference / save_spikes_left_right 直接 open，不自建）
+        os.makedirs("./out_spike_ref", exist_ok=True)
+        os.makedirs("./out_spikes", exist_ok=True)
 
 
         path = "./encode_decode/en_de_coding.npz"
