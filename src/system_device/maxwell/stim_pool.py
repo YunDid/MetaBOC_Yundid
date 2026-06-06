@@ -12,8 +12,10 @@ electrode → stim_unit 映射。本类在 download **之后** 只做 Stimulatio
   由 stim_pool.activate(electrodes) 按需 connect=True，发完不切回，下次
   发时 _set_active_only 自行做差集决定切换哪几路。
 
-运行时切换激活子集走 StimulationUnit.connect(True/False) 通道
-（mx.send(StimulationUnit(unit).connect(...))），禁止再次调用
+运行时切换激活子集走 StimulationUnit 完整寄存器链
+（mx.send(StimulationUnit(unit).power_up(True).connect(True/False).set_voltage_mode().dac_source(0))），
+每次必须重发全部字段——StimulationUnit.set() 一次性写下全部寄存器，省略的字段回落 __init__
+默认值（power 默认 0），裸 .connect() 会顺手把 power 写 0 导致断电。禁止再次调用
 array.connect_electrode_to_stimulation / disconnect_electrode_from_stimulation
 （这两个是 download 前的 routing 配置 API，运行时不可用）。
 
@@ -156,7 +158,9 @@ class StimPool:
         """
         运行时接通给定电极对应的 stim unit 输出（connect=True）。
 
-        实现：mx.send(mx.StimulationUnit(unit_id).connect(True))。
+        实现：mx.send(完整寄存器链 power_up(True)+connect(True)+set_voltage_mode+dac_source(0))。
+        必须发完整链，裸 .connect(True) 会把 power 写回默认 0（StimulationUnit.set() 一次写全字段），
+        unit 变「已连接但已断电」→ 不出电流。
         如果电极已经 active，幂等忽略。如果电极不在候选池中，抛异常。
         """
         import maxlab as mx
@@ -175,12 +179,20 @@ class StimPool:
                 ))
                 continue
             unit_id = self._electrode_to_unit[electrode]
-            print("[STIM_POOL] connect(True) unit={} electrode={} <-- HW toggle".format(
+            print("[STIM_POOL] power_up(True)+connect(True) unit={} electrode={} <-- HW toggle".format(
                 unit_id, electrode
             ))
+            # 必须重发完整寄存器（power_up + connect + voltage_mode + dac_source）。
+            # maxlab StimulationUnit.set() 每次把全部字段一次性写下去（mea_set_stimulation_unit
+            # <unit> <power> <connect> <current_mode> <current_range> <dac> <ref>），未显式设置的
+            # 字段回落到 __init__ 默认值——其中 power 默认 0。只发裸 .connect(True) 会把 power
+            # 一并写成 0，unit 变成「已连接但已断电」，seq.send() 照常但不出电流、示波器零伪迹。
+            # 与官方 examples/python/stimulate.html#powerup_stim_unit 对齐。
             check_send_ok(
-                mx.send(mx.StimulationUnit(unit_id).connect(True)),
-                "stim unit {} connect(True) (electrode {})".format(unit_id, electrode),
+                mx.send(mx.StimulationUnit(unit_id)
+                        .power_up(True).connect(True)
+                        .set_voltage_mode().dac_source(0)),
+                "stim unit {} power_up+connect(True) (electrode {})".format(unit_id, electrode),
             )
             self._active_electrodes.add(electrode)
 
@@ -188,7 +200,8 @@ class StimPool:
         """
         运行时断开给定电极对应的 stim unit 输出（connect=False）。幂等。
 
-        实现：mx.send(mx.StimulationUnit(unit_id).connect(False))。
+        实现：mx.send(完整寄存器链 power_up(True)+connect(False)+set_voltage_mode+dac_source(0))。
+        同 activate，必须发完整链以免裸命令把 power 写 0。
         """
         import maxlab as mx
 
@@ -202,12 +215,17 @@ class StimPool:
                 ))
                 continue
             unit_id = self._electrode_to_unit[electrode]
-            print("[STIM_POOL] connect(False) unit={} electrode={} <-- HW toggle".format(
+            print("[STIM_POOL] power_up(True)+connect(False) unit={} electrode={} <-- HW toggle".format(
                 unit_id, electrode
             ))
+            # 同 activate：重发完整寄存器，保持 power_up(True)、仅把输出 connect 置 False。
+            # 否则裸 .connect(False) 会把 power 写 0，提前断电（虽然 deactivate 后不发，但
+            # 保持 power_up + 配置态可让下次 activate 干净复用，且与启动 idle 态一致）。
             check_send_ok(
-                mx.send(mx.StimulationUnit(unit_id).connect(False)),
-                "stim unit {} connect(False) (electrode {})".format(unit_id, electrode),
+                mx.send(mx.StimulationUnit(unit_id)
+                        .power_up(True).connect(False)
+                        .set_voltage_mode().dac_source(0)),
+                "stim unit {} power_up+connect(False) (electrode {})".format(unit_id, electrode),
             )
             self._active_electrodes.discard(electrode)
 
