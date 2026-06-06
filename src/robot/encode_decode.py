@@ -484,14 +484,14 @@ class EncodingDecoding(QDialog, Ui_EncodeDecodeSetting):
 
             self.right_mea.pop(0)
             self.right_mea.append(right)
-        # 轮速非负，但是负轮速有助于避障？
-        if w_l < 0:
-            w_l = 0
-        if w_r < 0:
-            w_r = 0
-        if w_r == 0 and w_l == 0:
-            w_r = self.dsp_wv_min.value()
-            w_l = self.dsp_wv_min.value()
+        # 每个轮子保底 wv_min（原逻辑只在两轮同时为 0 时兜底，会出现单轮停住急转 / 完全停车）。
+        # 现在每轮都不低于 wv_min → 车一直有最小前进速度、不会完全停住，差速仍可转向。
+        # 注意：wv_min 由 Encode/Decode 参数设定；设为 0 仍允许停车，要保证一直走就设 >0（如 0.2）。
+        wv_min = self.dsp_wv_min.value()
+        if w_l < wv_min:
+            w_l = wv_min
+        if w_r < wv_min:
+            w_r = wv_min
         # self.Wheel_speed_threshold = 1.0
         if w_l > w_r:
             if w_l > self.Wheel_speed_threshold:
@@ -558,14 +558,14 @@ class EncodingDecoding(QDialog, Ui_EncodeDecodeSetting):
         if right >= self.spb_fre_max.value():
             w_r = self.dsp_wv_max.value()
 
-        # 轮速非负，但是负轮速有助于避障？
-        if w_l < 0:
-            w_l = 0
-        if w_r < 0:
-            w_r = 0
-        if w_r == 0 and w_l == 0:
-            w_r = self.dsp_wv_min.value()
-            w_l = self.dsp_wv_min.value()
+        # 每个轮子保底 wv_min（原逻辑只在两轮同时为 0 时兜底，会出现单轮停住急转 / 完全停车）。
+        # 现在每轮都不低于 wv_min → 车一直有最小前进速度、不会完全停住，差速仍可转向。
+        # 注意：wv_min 由 Encode/Decode 参数设定；设为 0 仍允许停车，要保证一直走就设 >0（如 0.2）。
+        wv_min = self.dsp_wv_min.value()
+        if w_l < wv_min:
+            w_l = wv_min
+        if w_r < wv_min:
+            w_r = wv_min
         #  设置阈值
         # 阈值
         # self.Wheel_speed_threshold = 1.0
@@ -645,14 +645,14 @@ class EncodingDecoding(QDialog, Ui_EncodeDecodeSetting):
         else:
             w_r = (gap / max_value) * (self.dsp_wv_max.value() - self.dsp_wv_min.value()) + self.dsp_wv_min.value()
             w_l = 0 + self.dsp_wv_min.value()
-        # 轮速非负，但是负轮速有助于避障？
-        if w_l < 0:
-            w_l = 0
-        if w_r < 0:
-            w_r = 0
-        if w_r == 0 and w_l == 0:
-            w_r = self.dsp_wv_min.value()
-            w_l = self.dsp_wv_min.value()
+        # 每个轮子保底 wv_min（原逻辑只在两轮同时为 0 时兜底，会出现单轮停住急转 / 完全停车）。
+        # 现在每轮都不低于 wv_min → 车一直有最小前进速度、不会完全停住，差速仍可转向。
+        # 注意：wv_min 由 Encode/Decode 参数设定；设为 0 仍允许停车，要保证一直走就设 >0（如 0.2）。
+        wv_min = self.dsp_wv_min.value()
+        if w_l < wv_min:
+            w_l = wv_min
+        if w_r < wv_min:
+            w_r = wv_min
         #  设置阈值
         # 阈值
         # self.Wheel_speed_threshold = 0.5
@@ -708,14 +708,14 @@ class EncodingDecoding(QDialog, Ui_EncodeDecodeSetting):
 
             self.right_mea.pop(0)
             self.right_mea.append(right)
-        # 轮速非负，但是负轮速有助于避障？
-        if w_l < 0:
-            w_l = 0
-        if w_r < 0:
-            w_r = 0
-        if w_r == 0 and w_l == 0:
-            w_r = self.dsp_wv_min.value()
-            w_l = self.dsp_wv_min.value()
+        # 每个轮子保底 wv_min（原逻辑只在两轮同时为 0 时兜底，会出现单轮停住急转 / 完全停车）。
+        # 现在每轮都不低于 wv_min → 车一直有最小前进速度、不会完全停住，差速仍可转向。
+        # 注意：wv_min 由 Encode/Decode 参数设定；设为 0 仍允许停车，要保证一直走就设 >0（如 0.2）。
+        wv_min = self.dsp_wv_min.value()
+        if w_l < wv_min:
+            w_l = wv_min
+        if w_r < wv_min:
+            w_r = wv_min
         # self.Wheel_speed_threshold = 1.0
         if w_l > w_r:
             if w_l > self.Wheel_speed_threshold:
