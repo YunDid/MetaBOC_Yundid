@@ -291,6 +291,7 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
 
         # Maxwell 会话参数缓存（Phase B：用 QFileDialog 让用户选 cfg）
         self.maxwell_cfg_path = None
+        self.maxwell_recording_list = None  # Stage 2：设备切换时选的左右记录电极 [left_ids, right_ids]
 
 
     def exit(self):
@@ -518,6 +519,10 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
         设置了惩罚刺激信号之后，更新任务态模式
         """
         sti_para = self.stimulate_select_dialog.get_selected_stimulating_para()
+        # Stage 2：Maxwell 下用设备切换时选的左右记录电极覆盖 sti_para 的 recording_list，
+        # 使其随同一 Parameter 流到 set_record_para → get_recording 启用左右分组。
+        if self.actionMaxwell.isChecked() and self.maxwell_recording_list is not None:
+            sti_para.recording_list = self.maxwell_recording_list
         self.lineEdit_select_sti.setText(sti_para.sti_para["stimulate_name"])
         self.imageWidget.mea_ic.set_stimulating_signal(sti_para)
         self.ShowMessageToStatusBar("Set stimulating parameter successed!...", False)
@@ -901,6 +906,26 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
                 "left_wheel": left_id,
                 "right_wheel": right_id,
             }
+
+            # Stage 2：从 cfg 列出记录电极，让用户指派左/右轮（决定 get_recording 的左右分组）。
+            # 跳过/取消 → maxwell_recording_list=None → get_recording 走全通道合并 fallback。
+            self.maxwell_recording_list = None
+            try:
+                from src.system_device.maxwell.cfg_loader import extract_electrodes
+                rec_electrodes = extract_electrodes(cfg_path)
+            except Exception as exc:
+                rec_electrodes = []
+                QMessageBox.warning(
+                    self, "cfg 解析失败",
+                    "无法从 cfg 解析记录电极：{}\n左右分组将走全通道 fallback。".format(exc),
+                )
+            if rec_electrodes:
+                from src.MaxwellRecordElectrodeDialog import MaxwellRecordElectrodeDialog
+                picker = MaxwellRecordElectrodeDialog(rec_electrodes, self)
+                picker.exec_()
+                rl = picker.get_recording_list()
+                if rl is not None:
+                    self.maxwell_recording_list = rl
 
             self.maxwell_cfg_path = cfg_path
             self.imageWidget.mea_ic.set_maxwell_session_params(
