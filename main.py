@@ -230,6 +230,24 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
 
         self.actionSave_Spikes.triggered.connect(self.save_spikes_data)
 
+        # MaxOne 原生记录（mx.Saving）：Export 菜单第 4 项，设备隔离、仅 Maxwell 生效。
+        # 勾选时选目录 + 通道范围；实际开录绑定到运行生命周期（start_event 开、Stop/超时停）。
+        # 与 C++ 探头独立；MCS/INTAN 下整条逻辑为安全空操作（hasattr 守卫）。
+        self.actionMaxOne_Recording = QAction(self)
+        self.actionMaxOne_Recording.setCheckable(True)
+        self.actionMaxOne_Recording.setObjectName("actionMaxOne_Recording")
+        self.actionMaxOne_Recording.setText("MaxOne Recording")
+        self.menuExport.addAction(self.actionMaxOne_Recording)
+        self.actionMaxOne_Recording.toggled.connect(self.toggle_maxone_recording)
+        self.maxone_rec_enabled = False
+        self.maxone_rec_dir = None
+        self.maxone_rec_all_channels = True   # True=全 1024 通道；False=仅在用电极通道
+        # 手动 Stop / Reset / Reset All 都收尾原生记录（超时停在 update_run 内处理）；
+        # 出界自动 reset 走 out_of_border 信号、不经这些按钮，故不停录 → 单次 run 一个文件。
+        self.pb_stop.clicked.connect(self._maxone_record_stop)
+        self.pb_reset.clicked.connect(self._maxone_record_stop)
+        self.pb_reset_all.clicked.connect(self._maxone_record_stop)
+
         # for grasp view
         self.grasp_distance_signal_dialog = GraspDistanceDialog(self)
         self.grasp_distance_signal_dialog.hide()
@@ -299,6 +317,7 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
         self.close()
 
     def closeEvent(self, a0: QCloseEvent) -> None:
+        self._maxone_record_stop()  # 关闭前收尾 MaxOne 记录文件（若在录）
         self.imageWidget.close()
         del self.imageWidget
         self.imageWidget = None
@@ -360,6 +379,9 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
         self.dsb_right_y.setValue(y)
 
     def start_event(self):
+        # MaxOne 原生记录：随实验开录（须在闭环发第一个刺激前 open，刺激 mx.Event 标识才会
+        # 写进文件）。幂等——出界自动 reset→start_event 不会重开文件。
+        self._maxone_record_start()
         if self.timer_run is not None:
             del self.timer_run
             self.timer_run = None
@@ -463,9 +485,11 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
 
         if self.rdb_test_mode.isChecked():
             if tim >= self.spb_test_time.value(): # 超时则停止
+                self._maxone_record_stop()
                 self.stop_event()
         else:
             if tim >= self.spb_train_time.value():
+                self._maxone_record_stop()
                 self.stop_event()
 
     def update_arm_visual(self):
@@ -719,6 +743,85 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
         else:
             self.ShowMessageToStatusBar("Please set output file path!...", ifWarn=True)
             return
+
+    # ---- MaxOne 原生记录（mx.Saving）：Export 菜单第 4 项 ----
+    def toggle_maxone_recording(self, checked):
+        """勾选：选目录 + 通道范围，置 enabled；取消：关闭并（若在录）立即停。"""
+        if not checked:
+            self.maxone_rec_enabled = False
+            self._maxone_record_stop()
+            self.ShowMessageToStatusBar("MaxOne 记录已关闭。", False)
+            return
+        if not self.actionMaxwell.isChecked():
+            QMessageBox.information(
+                self, "MaxOne Recording",
+                "该记录功能仅用于 Maxwell MaxOne 设备，请先在 System 菜单切到「Maxwell MaxOne」并连接。")
+            self.actionMaxOne_Recording.setChecked(False)
+            return
+        dir_path = QFileDialog.getExistingDirectory(self, "选择 MaxOne 记录保存目录", "")
+        if not dir_path:
+            self.ShowMessageToStatusBar("未选择目录，MaxOne 记录未开启。", ifWarn=True)
+            self.actionMaxOne_Recording.setChecked(False)
+            return
+        # 通道范围：全部 1024 vs 仅本次在用电极对应通道
+        box = QMessageBox(self)
+        box.setWindowTitle("记录通道范围")
+        box.setText("这次记录哪些通道？")
+        box.setInformativeText(
+            "全部通道：完整 1024 通道原始数据（文件大、最全）。\n"
+            "仅在用电极：只录本次选的记录+刺激电极对应通道（文件小、对齐你的实验）。")
+        btn_all = box.addButton("全部通道 (1024)", QMessageBox.AcceptRole)
+        btn_used = box.addButton("仅在用电极通道", QMessageBox.AcceptRole)
+        box.addButton("取消", QMessageBox.RejectRole)
+        box.exec_()
+        clicked = box.clickedButton()
+        if clicked is btn_all:
+            self.maxone_rec_all_channels = True
+        elif clicked is btn_used:
+            self.maxone_rec_all_channels = False
+        else:
+            self.actionMaxOne_Recording.setChecked(False)
+            return
+        self.maxone_rec_dir = dir_path
+        self.maxone_rec_enabled = True
+        scope = "全部 1024 通道" if self.maxone_rec_all_channels else "仅在用电极通道"
+        self.ShowMessageToStatusBar(
+            "MaxOne 记录已就绪（{}）：每次 Start 随实验开录、Stop/超时结束。目录：{}".format(scope, dir_path), False)
+
+    def _maxone_record_filename(self):
+        """文件名 {时间}_{test/train}_{任务}_{刺激标签}；刺激标签做路径字符清洗。"""
+        import re
+        times = time.localtime(time.time())
+        timetag = "{}_{}_{}_{}_{}".format(
+            times.tm_year, times.tm_mon, times.tm_mday, times.tm_hour, times.tm_min // 30)
+        mode = "train" if self.rdb_train_mode.isChecked() else "test"
+        if self.actionObstacle_Avoidance.isChecked():
+            task = "avoid"
+        elif self.actionObject_Tracking.isChecked():
+            task = "track"
+        elif self.actionObject_Grasping.isChecked():
+            task = "grasp"
+        else:
+            task = "task"
+        stim_label = (self.lineEdit_select_sti.text() or "").strip() or "nostim"
+        stim_label = re.sub(r"[^0-9A-Za-z_.-]", "_", stim_label)
+        return "{}_{}_{}_{}".format(timetag, mode, task, stim_label)
+
+    def _maxone_record_start(self):
+        """Start 时随实验开录（幂等）。仅 Maxwell 设备 + 已勾选 enabled 时生效；其余安全空操作。"""
+        if not self.maxone_rec_enabled or not self.actionMaxwell.isChecked():
+            return
+        rec = getattr(self.imageWidget.mea_ic, "recording", None)
+        if rec is None or not hasattr(rec, "start_native_recording"):
+            return
+        channels = None if self.maxone_rec_all_channels else rec.used_channels()
+        rec.start_native_recording(self.maxone_rec_dir, self._maxone_record_filename(), channels)
+
+    def _maxone_record_stop(self):
+        """测试/训练结束（手动 Stop 或超时）时停录、收尾文件。出界 reset 不调用本方法。幂等。"""
+        rec = getattr(self.imageWidget.mea_ic, "recording", None)
+        if rec is not None and hasattr(rec, "stop_native_recording"):
+            rec.stop_native_recording()
 
     def ZoomChanged(self, delta):
         units = delta / (8 * 15)

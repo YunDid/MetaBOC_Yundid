@@ -43,6 +43,10 @@ class RecordingMaxwell(object):
         self._electrode_to_channel = {}
         self._lr_fallback_warned = False
         self._getrec_calls = 0  # get_recording 调用计数（监控节流用）
+        # MaxOne 原生记录（mx.Saving）句柄；与 C++ 探头独立、互不干扰（探头供闭环 spike，
+        # 本文件供事后分析 + 持久化刺激 mx.Event 标识）。
+        self._saving = None
+        self._saving_active = False
 
     def set_cfg_path(self, cfg_path):
         """
@@ -396,6 +400,123 @@ class RecordingMaxwell(object):
         right_ch = [self._electrode_to_channel[e] for e in right_els if e in self._electrode_to_channel]
         return left_ch, right_ch
 
+    # ------------------------------------------------------- MaxOne 原生记录 (mx.Saving)
+    def used_channels(self):
+        """本次实验在用电极（记录左右 + 刺激左右）对应的 readout channel 列表（去重、升序）。
+
+        供「仅在用通道」记录模式给 mx.Saving.group_define 用。解析不出时返回 []
+        （调用方据此回退到全 1024 通道）。通道经 query_amplifier_at_electrode 实测取得
+        （与 get_recording 的 channelmap 同一套，真机必验③：amplifier 号 == 数据流 channel）。
+        """
+        electrodes = []
+        para = self.recording_para
+        rl = getattr(para, "recording_list", None) if para is not None else None
+        if rl and len(rl) >= 2:
+            if rl[0]:
+                electrodes += list(rl[0])
+            if rl[1]:
+                electrodes += list(rl[1])
+        elif self.record_electrodes:
+            electrodes += list(self.record_electrodes)
+        # 刺激电极：download 后权威映射的 key；回退到注入的 stim_electrodes
+        electrodes += list(self._stim_electrode_to_unit.keys()) or list(self.stim_electrodes or [])
+
+        norm = []
+        for e in electrodes:
+            try:
+                norm.append(int(e))
+            except (ValueError, TypeError):
+                pass
+        self._ensure_electrode_channel_map(norm)
+        seen, chans = set(), []
+        for e in norm:
+            ch = self._electrode_to_channel.get(e)
+            if ch is not None and ch not in seen:
+                seen.add(ch)
+                chans.append(ch)
+        return sorted(chans)
+
+    def start_native_recording(self, directory, file_name, channels=None):
+        """开一个 MaxOne server 端原生记录文件（mx.Saving），录到 stop_native_recording 为止。
+
+        channels=None → 录全 1024 通道；否则只录给定 readout channel 列表（仅在用电极，
+        由 used_channels() 给出）。与 C++ 探头（DataStreamerFiltered）相互独立：探头继续供
+        闭环 spike，本文件供事后分析与刺激 mx.Event 标识持久化。两者能否在同一 mxwserver
+        会话共存须真机确认（探头持有 filtered 流、本处只发 server 录盘命令，机制正交，
+        预期可共存；若真机有冲突，退化为记录窗口内暂停探头）。
+
+        幂等：已在录则忽略——闭环出界自动 reset→start_event 会再调一次，这里不重开文件，
+        保证「一次 Start → Stop/超时」对应一个完整文件。
+        """
+        if self._saving_active:
+            print("[RECORDING] MaxOne 记录已在进行，忽略重复 start（出界自动重启等）。")
+            return
+        if not self._connected or self._array is None:
+            print("[RECORDING] WARN: Maxwell 未连接，无法开始 MaxOne 记录。")
+            return
+        import maxlab as mx
+
+        wells = self._wells if isinstance(self._wells, (list, tuple)) and self._wells else [0]
+        s = None
+        try:
+            s = mx.Saving()
+            s.open_directory(directory)
+            s.start_file(file_name)
+            if channels is None:
+                s.group_define(0, "all_channels", list(range(1024)))
+                scope = "全部 1024 通道"
+            else:
+                chans = [int(c) for c in channels]
+                if chans:
+                    s.group_define(0, "used_channels", chans)
+                    scope = "仅在用 {} 通道 ch={}".format(len(chans), chans)
+                else:
+                    s.group_define(0, "all_channels", list(range(1024)))
+                    scope = "全部 1024 通道（在用通道解析为空，已回退）"
+            s.start_recording(wells)
+            self._saving = s
+            self._saving_active = True
+            print("[RECORDING] MaxOne 原生记录已开始：dir={} file={} 范围={} wells={}".format(
+                directory, file_name, scope, wells))
+        except Exception as exc:
+            # 部分启动失败（如 start_file 成功但 group_define/start_recording 抛错）时，
+            # 尽力收尾已开的文件，避免在 server 端留下孤立空文件。
+            if s is not None:
+                try:
+                    s.stop_file()
+                except Exception:
+                    pass
+            self._saving = None
+            self._saving_active = False
+            print("[RECORDING] MaxOne 记录启动失败（已忽略，闭环继续）：{!r}".format(exc))
+
+    def stop_native_recording(self):
+        """停止并关闭 MaxOne 原生记录文件（mx.Saving）。幂等：未在录则直接返回。"""
+        if not self._saving_active or self._saving is None:
+            return
+        import maxlab as mx
+        import time as _time
+        s = self._saving
+        try:
+            s.stop_recording()
+            wait_s = 2.0
+            try:
+                wait_s = float(getattr(mx.Timing, "waitAfterRecording", 2.0))
+            except Exception:
+                wait_s = 2.0
+            _time.sleep(wait_s)
+            s.stop_file()
+            try:
+                s.group_delete_all()
+            except Exception:
+                pass
+            print("[RECORDING] MaxOne 原生记录已停止、文件已关闭。")
+        except Exception as exc:
+            print("[RECORDING] MaxOne 记录停止时异常（已忽略）：{!r}".format(exc))
+        finally:
+            self._saving = None
+            self._saving_active = False
+
     def stop_recording(self):
         """与 Intan recording 接口对齐。停止 C++ 探头数据流。"""
         if self._recording_thread is not None:
@@ -403,10 +524,11 @@ class RecordingMaxwell(object):
             self._recording_thread = None
 
     def disconnect(self):
-        """断开 Maxwell 会话。先停探头子进程，再容错清理硬件资源。"""
+        """断开 Maxwell 会话。先收尾原生记录文件、停探头子进程，再容错清理硬件资源。"""
         if not self._connected:
             return
-        self.stop_recording()  # 先停 C++ 探头，避免 server close 后探头仍在读
+        self.stop_native_recording()  # 先收尾 mx.Saving 文件（若在录）
+        self.stop_recording()  # 再停 C++ 探头，避免 server close 后探头仍在读
         from . import session_lifecycle
         session_lifecycle.cleanup_session(array=getattr(self, "_array", None))
         self._connected = False
