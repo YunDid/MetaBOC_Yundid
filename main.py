@@ -435,7 +435,7 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
 
         self.imageWidget.robot.hits = 0
         self.spb_number_hints.setValue(self.imageWidget.robot.hits)
-        self.spb_distance_tracking.setValue(self.imageWidget.tracking.get_mean_distance())
+        self.spb_distance_tracking.setValue(int(self.imageWidget.tracking.get_mean_distance() or 0))
         self.imageWidget.robot.points_his.clear()
 
 
@@ -457,7 +457,7 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
         tim = (self.all_time + time.time() - self.current_time) / 60
         self.dsb_current_time.setValue(tim)
         self.spb_number_hints.setValue(self.imageWidget.robot.hits)
-        self.spb_distance_tracking.setValue(self.imageWidget.tracking.get_mean_distance())
+        self.spb_distance_tracking.setValue(int(self.imageWidget.tracking.get_mean_distance() or 0))
 
         self.update_arm_visual()
 

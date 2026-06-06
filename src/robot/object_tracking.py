@@ -8,6 +8,7 @@
 
 from cmath import sqrt
 from faulthandler import disable
+import os
 import random
 import math
 import time
@@ -77,6 +78,9 @@ class Tracking(object):
             self.time_of_distance.append((current_time, dis))
 
     def save_tracking_distance_txt(self, save_name):
+        directory = os.path.dirname(save_name)
+        if directory:
+            os.makedirs(directory, exist_ok=True)  # 输出目录首跑可能不存在
         with open(save_name, "a+") as f:
             for t in self.time_of_distance:
                 # 手动格式化字符串
