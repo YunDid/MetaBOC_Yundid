@@ -281,6 +281,17 @@ class Communication(object):
         self.angle_left = ang_dis_left
         self.angle_right = ang_dis_right
 
+        # —— 诊断（临时）：碰撞瞬间打印关键门控值，定位「检测到碰撞/4s等待触发，却无惩罚标签」的真因。
+        # 看：碰撞时本行是否打印（=hit 真被传进来）、mode_train 真值、紧随其后是否有
+        # [STIM] update_stimulation_left/right() — punish。
+        if left_hit or right_hit:
+            print("[HIT-DIAG] left_hit={} right_hit={} mode_train={} task={} stim_connected={} "
+                  "left_unit={} right_unit={}".format(
+                      left_hit, right_hit, self.mode_train, self.task,
+                      getattr(self.stimulation, "_connected", "?"),
+                      getattr(self.stimulation, "left_unit_id", "?"),
+                      getattr(self.stimulation, "right_unit_id", "?")))
+
         if self.mode_train:  # 仅在训练模式下，进行奖惩刺激
             # if left_hit:
             #     self.stimulation.update_stimulation_left()    # 撞击到障碍物时的操作，相关信号需传输至刺激器，奖惩刺激

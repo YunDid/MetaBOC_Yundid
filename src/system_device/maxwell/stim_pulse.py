@@ -79,7 +79,8 @@ def build_biphasic_pulse_train(
         a == 0: DAC(0, 512)             电极端 0
     每段后跟 DelaySamples(d/50)。
 
-    每检测到 a > 0 的段（认定为新双相脉冲起点）前插一条 mx.Event 标记。
+    在每个脉冲的真实起点（首个非零段，不论正/负相先）前插一条 mx.Event 标记，
+    使「负相先」波形（reward / set_sti_signal 配置）的标记也对齐脉冲真实起点。
     序列收尾追加 DAC(0, 512) 防 DAC 残留非零值。
 
     Parameters
@@ -115,18 +116,24 @@ def build_biphasic_pulse_train(
 
     seq = mx.Sequence(initial_delay=initial_delay)
     pulse_idx = 0
+    in_pulse = False   # 是否处于一个双相脉冲内部
 
     for i, (a_uv_raw, d_us_raw) in enumerate(zip(amp_array_uv, dur_array_us)):
         a_uv = int(a_uv_raw)
         d_us = int(d_us_raw)
 
-        # 正相段视作新双相脉冲起点 → 插 Event 标记 frame 元数据
-        if a_uv > 0:
+        # 在每个脉冲的【真实起点】（首个非零段，不论正相/负相先）插一条 mx.Event。
+        # 旧逻辑只在 a_uv>0 处插：对「负相先」波形（reward 的 [-a,+a,0]、set_sti_signal
+        # 配置的 [a1<0,0,a2>0,gap]）会把标记打到第二相（晚 ~一个相位），不对齐真实起点。
+        if a_uv != 0 and not in_pulse:
             pulse_idx += 1
             label = "{} pulse_{} amp_{}uV".format(
                 label_prefix, pulse_idx, a_uv
             ).strip()
             seq.append(mx.Event(well_id, 1, user_id, label))
+            in_pulse = True
+
+        if a_uv > 0:
             amp_dac = uv_to_dac_bits(a_uv, dac_lsb_mv)
             seq.append(mx.DAC(0, DAC_CENTER - amp_dac))
         elif a_uv < 0:
@@ -134,6 +141,11 @@ def build_biphasic_pulse_train(
             seq.append(mx.DAC(0, DAC_CENTER + amp_dac))
         else:
             seq.append(mx.DAC(0, DAC_CENTER))
+
+        # 只有「带时长的零段」（真实相间/脉冲间隙）才结束当前脉冲；时长 0 的占位零段
+        # （如 set_sti_signal duration_2=0 的中间段）不结束，避免把一个双相脉冲拆成两个 Event。
+        if a_uv == 0 and d_us > 0:
+            in_pulse = False
 
         n_samples = us_to_samples(d_us)
         if n_samples > 0:
