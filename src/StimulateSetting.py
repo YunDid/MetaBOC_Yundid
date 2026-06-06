@@ -27,11 +27,12 @@ from src.robot.task import SYSTEM_DEVICE
 class StimulateSettingDialog(QDialog, Ui_StimulateDialog):
     close_dialog = pyqtSignal(bool)
 
-    def __init__(self, parent=None, sys_device=None):
+    def __init__(self, parent=None, sys_device=None, maxwell_preset=None):
         super(StimulateSettingDialog, self).__init__(parent)
         self.setupUi(self)
 
         self.sys_device = sys_device
+        self.maxwell_preset = maxwell_preset  # Maxwell：预填左右记录/刺激电极（来自设备切换选择）
 
         self.intan_ele_widget = None
         self.initial_device_ele(self.sys_device)
@@ -164,6 +165,15 @@ class StimulateSettingDialog(QDialog, Ui_StimulateDialog):
         self.recording_right_list = []
         self.stimulating_left_list = []
         self.stimulating_right_list = []
+
+        # Maxwell：用设备切换时选好的电极预填四个缓冲（图1 不在网格选电极，靠这个带进 npz）
+        if self.maxwell_preset is not None:
+            rec = self.maxwell_preset.get("recording_list", [[], []])
+            stim = self.maxwell_preset.get("stimulating_list", [[], []])
+            self.recording_left_list = list(rec[0]) if len(rec) > 0 else []
+            self.recording_right_list = list(rec[1]) if len(rec) > 1 else []
+            self.stimulating_left_list = list(stim[0]) if len(stim) > 0 else []
+            self.stimulating_right_list = list(stim[1]) if len(stim) > 1 else []
 
         self.bg_record_sti = QButtonGroup(self)
         self.bg_record_sti.addButton(self.radioButton_recording_left)

@@ -292,6 +292,7 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
         # Maxwell 会话参数缓存（Phase B：用 QFileDialog 让用户选 cfg）
         self.maxwell_cfg_path = None
         self.maxwell_recording_list = None  # Stage 2：设备切换时选的左右记录电极 [left_ids, right_ids]
+        self.maxwell_stim_lr = None         # 设备切换时选的左右轮刺激电极 [[left],[right]]（字符串）
 
 
     def exit(self):
@@ -497,7 +498,14 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
                 # Maxwell：图1 复用 MCS 脉冲参数 UI（隐藏物理网格），编辑双相脉冲刺激参数
                 sys_ = SYSTEM_DEVICE.MAXWELL
 
-            self.stimulate_setting_dialog = StimulateSettingDialog(self, sys_)
+            # Maxwell：把设备切换时选的左右记录/刺激电极预填进图1，使其随 npz 流到图2 显示
+            maxwell_preset = None
+            if sys_ == SYSTEM_DEVICE.MAXWELL:
+                maxwell_preset = {
+                    "recording_list": self.maxwell_recording_list or [[], []],
+                    "stimulating_list": self.maxwell_stim_lr or [[], []],
+                }
+            self.stimulate_setting_dialog = StimulateSettingDialog(self, sys_, maxwell_preset=maxwell_preset)
             self.stimulate_setting_dialog.close_dialog.connect(self.close_sti_setting_dialog)
             self.stimulate_setting_dialog.show()
 
@@ -845,87 +853,56 @@ class MainWindowClass(QMainWindow, Ui_MainWindow):
                 self.actionMEA_2100.setChecked(True)
                 return
 
-            # 当前实验范式固定 2 个刺激电极：第 1 个 = 左轮，第 2 个 = 右轮。
-            # 左右切换通过 stim_unit 输出开关实现（共享 DAC0），同一时刻
-            # 只允许一侧 unit connect=True，避免串扰；双侧奖励刺激时两
-            # unit 同时 connect=True，由同一 sequence 同步驱动。
-            #
-            # 对应卡片：
-            #   - [[Maxwell - 路由层与 unit 输出层的双层 connect 语义]]
-            #   - [[MetaBOC - cfg 文件解析与显式路由策略]]
-            left_text, ok = QInputDialog.getText(
-                self,
-                "刺激电极配置 — 左轮",
-                "请输入「左轮」对应的刺激电极 ID（整数）：\n\n"
-                "MetaBOC 当前实验范式固定 2 个刺激电极：\n"
-                "  • 左轮（先输入）：触发左侧环境 / 惩罚 / 奖励刺激\n"
-                "  • 右轮（下一步输入）：触发右侧刺激\n"
-                "  • 双侧奖励刺激同时驱动两个电极\n\n"
-                "电极 ID 必须在 cfg 已 routing 的范围内，且\n"
-                "两个电极不能映射到同一个 stim_unit（冲突由\n"
-                "MaxLab Live 的 mapping_preflight 预先筛选）。",
-            )
-            if not ok or not left_text.strip():
-                self.actionMEA_2100.setChecked(True)
-                return
-
-            right_text, ok = QInputDialog.getText(
-                self,
-                "刺激电极配置 — 右轮",
-                "请输入「右轮」对应的刺激电极 ID（整数）：",
-            )
-            if not ok or not right_text.strip():
-                self.actionMEA_2100.setChecked(True)
-                return
-
-            try:
-                left_id = int(left_text.strip())
-                right_id = int(right_text.strip())
-            except ValueError as exc:
-                QMessageBox.warning(
-                    self,
-                    "电极 ID 解析失败",
-                    "无法把输入解析为电极 ID：{}\n"
-                    "请输入纯数字。".format(exc),
-                )
-                self.actionMEA_2100.setChecked(True)
-                return
-
-            if left_id == right_id:
-                QMessageBox.warning(
-                    self,
-                    "左右电极冲突",
-                    "左轮与右轮不能使用同一个电极 ID（{}）。\n"
-                    "请重新切换到 Maxwell 并输入两个不同的电极。".format(left_id),
-                )
-                self.actionMEA_2100.setChecked(True)
-                return
-
-            stim_electrodes = [left_id, right_id]
-            role_mapping = {
-                "left_wheel": left_id,
-                "right_wheel": right_id,
-            }
-
-            # Stage 2：从 cfg 列出记录电极，让用户指派左/右轮（决定 get_recording 的左右分组）。
-            # 跳过/取消 → maxwell_recording_list=None → get_recording 走全通道合并 fallback。
-            self.maxwell_recording_list = None
+            # 解析 cfg 电极（刺激选择器与记录选择器共用同一份）
             try:
                 from src.system_device.maxwell.cfg_loader import extract_electrodes
-                rec_electrodes = extract_electrodes(cfg_path)
+                cfg_electrodes = extract_electrodes(cfg_path)
             except Exception as exc:
-                rec_electrodes = []
-                QMessageBox.warning(
-                    self, "cfg 解析失败",
-                    "无法从 cfg 解析记录电极：{}\n左右分组将走全通道 fallback。".format(exc),
-                )
-            if rec_electrodes:
-                from src.MaxwellRecordElectrodeDialog import MaxwellRecordElectrodeDialog
-                picker = MaxwellRecordElectrodeDialog(rec_electrodes, self)
-                picker.exec_()
-                rl = picker.get_recording_list()
-                if rl is not None:
-                    self.maxwell_recording_list = rl
+                QMessageBox.warning(self, "cfg 解析失败",
+                                    "无法从 cfg 解析电极：{}".format(exc))
+                self.actionMEA_2100.setChecked(True)
+                return
+            if not cfg_electrodes:
+                QMessageBox.warning(self, "cfg 无电极", "cfg 未解析出任何电极。")
+                self.actionMEA_2100.setChecked(True)
+                return
+
+            from src.MaxwellRecordElectrodeDialog import MaxwellRecordElectrodeDialog
+
+            # 刺激电极：当前范式固定 2 个（左轮/右轮各 1），从 cfg 列表单选。左右切换通过
+            # stim_unit 输出开关实现（共享 DAC0），同一时刻只允许一侧 connect=True 避免串扰。
+            # 对应卡片：[[Maxwell - 路由层与 unit 输出层的双层 connect 语义]] /
+            #           [[MetaBOC - cfg 文件解析与显式路由策略]]
+            stim_picker = MaxwellRecordElectrodeDialog(
+                cfg_electrodes, self, single=True,
+                title="Maxwell 刺激电极 — 左轮 / 右轮",
+                intro="给「左轮」「右轮」各选一个刺激电极（cfg 已 routing 范围内）。\n"
+                      "左轮触发左侧环境/惩罚/奖励刺激，右轮触发右侧；双侧奖励同时驱动两个。\n"
+                      "两电极不能映射到同一 stim_unit（冲突由 MaxLab Live mapping_preflight 预筛）。",
+            )
+            stim_picker.exec_()
+            stim_lr = stim_picker.get_recording_list()
+            if stim_lr is None:
+                # 刺激电极是 connect 路由的必需项，取消则回退
+                self.actionMEA_2100.setChecked(True)
+                return
+            stim_left_str, stim_right_str = stim_lr[0][0], stim_lr[1][0]
+            left_id, right_id = int(stim_left_str), int(stim_right_str)
+            stim_electrodes = [left_id, right_id]
+            role_mapping = {"left_wheel": left_id, "right_wheel": right_id}
+            self.maxwell_stim_lr = [[stim_left_str], [stim_right_str]]
+
+            # 记录电极：多选指派左右轮（决定 get_recording 的左右分组）。顶部显示已选刺激电极。
+            # 跳过 → maxwell_recording_list=None → get_recording 走全通道合并 fallback。
+            self.maxwell_recording_list = None
+            rec_picker = MaxwellRecordElectrodeDialog(
+                cfg_electrodes, self,
+                info_text="已选刺激电极 —— 左轮 {} / 右轮 {}".format(stim_left_str, stim_right_str),
+            )
+            rec_picker.exec_()
+            rl = rec_picker.get_recording_list()
+            if rl is not None:
+                self.maxwell_recording_list = rl
 
             self.maxwell_cfg_path = cfg_path
             self.imageWidget.mea_ic.set_maxwell_session_params(

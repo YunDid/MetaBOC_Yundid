@@ -318,7 +318,7 @@ class RecordingMaxwell(object):
         if self._array is None:
             return None
         try:
-            amp = self._array.query_amplifier_at_electrode(electrode)
+            amp = self._array.query_amplifier_at_electrode(int(electrode))  # recording_list 元素可能是字符串
         except Exception as exc:
             print("[RECORDING] query_amplifier_at_electrode({}) 失败: {!r}".format(electrode, exc))
             return None
